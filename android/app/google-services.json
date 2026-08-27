@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1059928848546",
+    "project_id": "salonbooking-af1df",
+    "storage_bucket": "salonbooking-af1df.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1059928848546:android:463373ab676c67813a7ffb",
+        "android_client_info": {
+          "package_name": "com.salonbooking.salonbooking"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCYoX-14ujLDDSXt2MKSTKJuDrSAp4VHvw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

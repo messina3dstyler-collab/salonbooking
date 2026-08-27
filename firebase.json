@@ -1,0 +1,29 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "salonbooking-af1df",
+          "appId": "1:1059928848546:android:463373ab676c67813a7ffb",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "salonbooking-af1df",
+          "configurations": {
+            "android": "1:1059928848546:android:463373ab676c67813a7ffb",
+            "ios": "1:1059928848546:ios:1323ce2025ea27393a7ffb",
+            "web": "1:1059928848546:web:37a0dc3298abc32a3a7ffb"
+          }
+        }
+      }
+    }
+  },
+  "firestore": {
+    "database": "(default)",
+    "location": "europe-west12",
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  }
+}

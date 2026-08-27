@@ -1,0 +1,79 @@
+name: salon_booking
+description: SalonBooking - Gestione appuntamenti per saloni da donna e barber shop.
+
+publish_to: "none"
+
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.7.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  flutter_localizations:
+    sdk: flutter
+
+  # Cupertino Icons
+  cupertino_icons: ^1.0.8
+
+  # State Management
+  flutter_riverpod: ^2.6.1
+
+  # Navigation
+  go_router: ^16.0.0
+
+  # Firebase
+  firebase_core: ^4.0.0
+  firebase_auth: ^6.0.0
+  cloud_firestore: ^6.0.0
+  firebase_messaging: ^16.0.0
+
+  # UI
+  google_fonts: ^6.3.1
+
+  # Utilities
+  intl: ^0.20.2
+  uuid: ^4.5.1
+
+  # Local Storage
+  shared_preferences: ^2.5.3
+
+  # SVG (per il logo vettoriale)
+  flutter_svg: ^2.2.0
+
+  # Animazioni (le useremo più avanti)
+  lottie: ^3.3.2
+
+  table_calendar: ^3.1.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+
+flutter:
+
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/icons/
+    - assets/logos/
+    - assets/animations/
+
+  # Quando scaricheremo i font localmente, decommenteremo questa sezione.
+  #
+  # fonts:
+  #   - family: Poppins
+  #     fonts:
+  #       - asset: assets/fonts/Poppins-Regular.ttf
+  #         weight: 400
+  #       - asset: assets/fonts/Poppins-Medium.ttf
+  #         weight: 500
+  #       - asset: assets/fonts/Poppins-SemiBold.ttf
+  #         weight: 600
+  #       - asset: assets/fonts/Poppins-Bold.ttf
+  #         weight: 700
