@@ -1,32 +1,37 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../../../app/theme/theme.dart';
 import '../../appointment_providers.dart';
+import '../../controller/appointment_controller.dart';
 import '../widgets/appointment_card.dart';
 
-
-class AppointmentsPage extends ConsumerStatefulWidget{
-  const AppointmentsPage({super.key});
+class AppointmentsPage extends ConsumerStatefulWidget {
+  const AppointmentsPage({
+    super.key,
+  });
 
   @override
-  ConsumerState<AppointmentsPage> createState()=>_AppointmentsPageState();
+  ConsumerState<AppointmentsPage> createState() =>
+      _AppointmentsPageState();
 }
 
-class _AppointmentsPageState extends ConsumerState<AppointmentsPage>{
-
+class _AppointmentsPageState
+    extends ConsumerState<AppointmentsPage> {
   @override
-  void initState(){
+  void initState() {
     super.initState();
 
     Future.microtask(_load);
   }
 
-  Future<void> _load()async{
-    final user=FirebaseAuth.instance.currentUser;
+  Future<void> _load() async {
+    final user = FirebaseAuth.instance.currentUser;
 
-    if(user==null)return;
+    if (user == null) {
+      return;
+    }
 
     await ref
         .read(appointmentControllerProvider)
@@ -34,44 +39,51 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage>{
   }
 
   @override
-  Widget build(BuildContext context){
-
-    final controller=
-    ref.watch(appointmentControllerProvider);
+  Widget build(BuildContext context) {
+    final controller = ref.watch(
+      appointmentControllerProvider,
+    );
 
     return Scaffold(
-      backgroundColor:AppColors.background,
-      appBar:AppBar(
-        title:const Text('I miei appuntamenti'),
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: const Text(
+          'I miei appuntamenti',
+        ),
       ),
-      body:_body(controller),
+      body: _body(controller),
     );
   }
 
-  Widget _body(dynamic controller){
-
-    if(controller.isLoading){
+  Widget _body(
+      AppointmentController controller,
+      ) {
+    if (controller.isLoading) {
       return const Center(
-        child:CircularProgressIndicator(),
+        child: CircularProgressIndicator(),
       );
     }
 
-    if(controller.error!=null){
+    if (controller.error != null) {
       return Center(
-        child:Text(controller.error!),
+        child: Text(
+          controller.error!,
+        ),
       );
     }
 
-    if(controller.appointments.isEmpty){
+    if (controller.appointments.isEmpty) {
       return RefreshIndicator(
-        onRefresh:_load,
-        child:ListView(
-          children:[
+        onRefresh: _load,
+        child: ListView(
+          children: [
             SizedBox(
               height:
-              MediaQuery.of(context).size.height*0.4,
-              child:const Center(
-                child:Text('Non hai ancora prenotazioni'),
+              MediaQuery.of(context).size.height * 0.4,
+              child: const Center(
+                child: Text(
+                  'Non hai ancora prenotazioni',
+                ),
               ),
             ),
           ],
@@ -80,16 +92,15 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage>{
     }
 
     return RefreshIndicator(
-      onRefresh:_load,
-      child:ListView.builder(
-        padding:
-        const EdgeInsets.all(AppSpacing.lg),
-        itemCount:
-        controller.appointments.length,
-        itemBuilder:(context,index){
+      onRefresh: _load,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(
+          AppSpacing.lg,
+        ),
+        itemCount: controller.appointments.length,
+        itemBuilder: (context, index) {
           return AppointmentCard(
-            appointment:
-            controller.appointments[index],
+            appointment: controller.appointments[index],
           );
         },
       ),

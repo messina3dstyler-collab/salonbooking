@@ -16,22 +16,18 @@ abstract class RequestTransactionOperation {
   // FIRESTORE
   //--------------------------------------------------
 
-  FirebaseFirestore get firestore =>
-      context.firestore;
+  FirebaseFirestore get firestore => context.firestore;
 
-  Transaction get transaction =>
-      context.transaction;
+  Transaction get transaction => context.transaction;
 
   //--------------------------------------------------
   // COLLECTIONS
   //--------------------------------------------------
 
-  CollectionReference<Map<String, dynamic>>
-  get requests =>
+  CollectionReference<Map<String, dynamic>> get requests =>
       context.requests;
 
-  CollectionReference<Map<String, dynamic>>
-  timeline(
+  CollectionReference<Map<String, dynamic>> timeline(
       String requestId,
       ) {
     return context.timeline(requestId);
@@ -41,45 +37,38 @@ abstract class RequestTransactionOperation {
   // DATASOURCE
   //--------------------------------------------------
 
-  AppointmentRequestDatasource
-  get datasource =>
-      context.datasource;
+  AppointmentRequestDatasource get datasource => context.datasource;
 
   //--------------------------------------------------
   // MAPPERS
   //--------------------------------------------------
 
-  AppointmentRequestMapper
-  get requestMapper =>
-      context.requestMapper;
+  AppointmentRequestMapper get requestMapper => context.requestMapper;
 
-  RequestTimelineMapper
-  get timelineMapper =>
-      context.timelineMapper;
+  RequestTimelineMapper get timelineMapper => context.timelineMapper;
 
   //--------------------------------------------------
-  // HELPERS
+  // DOCUMENTS
   //--------------------------------------------------
 
-  DocumentReference<Map<String, dynamic>>
-  requestDocument(
+  DocumentReference<Map<String, dynamic>> requestDocument(
       String requestId,
       ) {
     return requests.doc(requestId);
   }
 
-  DocumentReference<Map<String, dynamic>>
-  timelineDocument({
+  DocumentReference<Map<String, dynamic>> timelineDocument({
     required String requestId,
     required String eventId,
   }) {
-    return timeline(requestId).doc(
-      eventId,
-    );
+    return timeline(requestId).doc(eventId);
   }
 
-  Future<DocumentSnapshot<Map<String, dynamic>>>
-  loadRequest(
+  //--------------------------------------------------
+  // REQUEST
+  //--------------------------------------------------
+
+  Future<DocumentSnapshot<Map<String, dynamic>>> loadRequestDocument(
       String requestId,
       ) {
     return transaction.get(
@@ -107,13 +96,9 @@ abstract class RequestTransactionOperation {
     );
   }
 
-  void deleteRequestDocument(
-      String requestId,
-      ) {
-    transaction.delete(
-      requestDocument(requestId),
-    );
-  }
+  //--------------------------------------------------
+  // TIMELINE
+  //--------------------------------------------------
 
   void createTimelineEvent({
     required String requestId,

@@ -10,8 +10,7 @@ class RequestStateValidator {
   String? validateCreation(
       AppointmentRequest request,
       ) {
-    if (request.status !=
-        AppointmentRequestStatus.draft) {
+    if (request.status != AppointmentRequestStatus.draft) {
       return "Una nuova richiesta deve essere creata in stato Draft.";
     }
 
@@ -132,8 +131,7 @@ class RequestStateValidator {
   bool canEdit(
       AppointmentRequest request,
       ) {
-    return request.status ==
-        AppointmentRequestStatus.draft;
+    return request.status == AppointmentRequestStatus.draft;
   }
 
   //--------------------------------------------------
@@ -143,8 +141,7 @@ class RequestStateValidator {
   bool canDelete(
       AppointmentRequest request,
       ) {
-    return request.status ==
-        AppointmentRequestStatus.draft;
+    return request.status == AppointmentRequestStatus.draft;
   }
 
   //--------------------------------------------------

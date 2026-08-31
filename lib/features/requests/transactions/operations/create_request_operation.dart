@@ -1,12 +1,12 @@
 import 'package:uuid/uuid.dart';
 
+import '../../extensions/request_author_extension.dart';
 import '../../models/appointment_request.dart';
 import '../../models/request_timeline_event.dart';
 
 import 'request_transaction_operation.dart';
 
-class CreateRequestOperation
-    extends RequestTransactionOperation {
+class CreateRequestOperation extends RequestTransactionOperation {
   CreateRequestOperation(
       super.context,
       );
@@ -34,7 +34,7 @@ class CreateRequestOperation
       requestId: request.id,
       type: RequestTimelineEventType.created,
       createdAt: DateTime.now(),
-      author: request.createdBy,
+      author: request.createdBy.timelineAuthor,
       message: "Richiesta creata.",
     );
 
@@ -45,3 +45,7 @@ class CreateRequestOperation
     );
   }
 }
+
+
+
+

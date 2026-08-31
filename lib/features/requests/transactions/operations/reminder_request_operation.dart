@@ -1,32 +1,29 @@
+import '../../models/appointment_request.dart';
 import '../../models/request_timeline_event.dart';
 
-import 'request_transaction_operation.dart';
-import '../../models/appointment_request.dart';
+import '../request_transaction_operation.dart';
 
-class ReminderRequestOperation
-    extends RequestTransactionOperation {
+class ReminderRequestOperation extends RequestTransactionOperation {
   ReminderRequestOperation(
       super.context,
       );
 
   Future<void> execute(
-      String requestId,
+      AppointmentRequest request,
       ) async {
+    final now = DateTime.now();
+
     final event = RequestTimelineEvent(
-      id: DateTime.now()
-          .millisecondsSinceEpoch
-          .toString(),
-      requestId: requestId,
-      type:
-      RequestTimelineEventType.notificationSent,
-      createdAt: DateTime.now(),
-      author: RequestAuthor.system,
-      message:
-      "È stato inviato un sollecito al cliente.",
+      id: now.microsecondsSinceEpoch.toString(),
+      requestId: request.id,
+      type: RequestTimelineEventType.notificationSent,
+      createdAt: now,
+      author: RequestTimelineAuthor.system,
+      message: "Promemoria inviato al cliente.",
     );
 
     createTimelineEvent(
-      requestId: requestId,
+      requestId: request.id,
       eventId: event.id,
       data: timelineMapper.toMap(event),
     );

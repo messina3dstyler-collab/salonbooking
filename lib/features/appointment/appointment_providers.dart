@@ -5,19 +5,22 @@ import 'controller/appointment_controller.dart';
 import 'repositories/appointment_repository.dart';
 import 'services/appointment_service.dart';
 
-final appointmentRepositoryProvider=Provider<AppointmentRepository>((ref){
+final appointmentRepositoryProvider =
+Provider<AppointmentRepository>((ref) {
   return AppointmentRepository(
     FirebaseFirestore.instance,
   );
 });
 
-final appointmentServiceProvider=Provider<AppointmentService>((ref){
+final appointmentServiceProvider =
+Provider<AppointmentService>((ref) {
   return AppointmentService(
     ref.watch(appointmentRepositoryProvider),
   );
 });
 
-final appointmentControllerProvider=ChangeNotifierProvider<AppointmentController>((ref){
+final appointmentControllerProvider =
+ChangeNotifierProvider<AppointmentController>((ref) {
   return AppointmentController(
     ref.watch(appointmentServiceProvider),
   );

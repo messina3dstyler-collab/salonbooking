@@ -9,13 +9,11 @@ class AppointmentRepository {
 
   CollectionReference<Map<String, dynamic>> get _appointments =>
       _firestore.collection('appointments');
-  DocumentReference<Map<String, dynamic>>
-  appointmentDocument(
+
+  DocumentReference<Map<String, dynamic>> appointmentDocument(
       String appointmentId,
       ) {
-    return _appointments.doc(
-      appointmentId,
-    );
+    return _appointments.doc(appointmentId);
   }
 
   AppointmentModel _map(
@@ -27,36 +25,34 @@ class AppointmentRepository {
     );
   }
 
-
   List<AppointmentModel> _list(
       QuerySnapshot<Map<String, dynamic>> snap,
       ) {
     return snap.docs.map(_map).toList();
   }
 
+  // ==================================================
+  // CRUD
+  // ==================================================
 
   Future<void> createAppointment({
     required AppointmentModel appointment,
   }) {
-    return _appointments
-        .doc(appointment.id)
-        .set(
+    return _appointments.doc(appointment.id).set(
       appointment.toMap(),
       SetOptions(merge: true),
     );
   }
-
 
   Future<void> updateAppointment({
     required AppointmentModel appointment,
   }) {
-    return _appointments
-        .doc(appointment.id)
-        .set(
+    return _appointments.doc(appointment.id).set(
       appointment.toMap(),
       SetOptions(merge: true),
     );
   }
+
   Future<void> patchAppointment({
     required String appointmentId,
     required Map<String, dynamic> changes,
@@ -69,35 +65,26 @@ class AppointmentRepository {
 
     if (transaction != null) {
       transaction.update(
-        appointmentDocument(
-          appointmentId,
-        ),
+        appointmentDocument(appointmentId),
         data,
       );
       return;
     }
 
-    await appointmentDocument(
-      appointmentId,
-    ).update(data);
+    await appointmentDocument(appointmentId).update(data);
   }
 
-  Future<DocumentSnapshot<Map<String, dynamic>>>
-  loadAppointment({
+  Future<DocumentSnapshot<Map<String, dynamic>>> loadAppointment({
     required String appointmentId,
     Transaction? transaction,
   }) {
     if (transaction != null) {
       return transaction.get(
-        appointmentDocument(
-          appointmentId,
-        ),
+        appointmentDocument(appointmentId),
       );
     }
 
-    return appointmentDocument(
-      appointmentId,
-    ).get();
+    return appointmentDocument(appointmentId).get();
   }
 
   Future<void> deleteAppointment({
@@ -106,26 +93,18 @@ class AppointmentRepository {
   }) async {
     if (transaction != null) {
       transaction.delete(
-        appointmentDocument(
-          appointmentId,
-        ),
+        appointmentDocument(appointmentId),
       );
       return;
     }
 
-    await appointmentDocument(
-      appointmentId,
-    ).delete();
+    await appointmentDocument(appointmentId).delete();
   }
-
 
   Future<AppointmentModel?> getAppointment({
     required String appointmentId,
   }) async {
-
-    final doc = await _appointments
-        .doc(appointmentId)
-        .get();
+    final doc = await _appointments.doc(appointmentId).get();
 
     if (!doc.exists) {
       return null;
@@ -134,17 +113,13 @@ class AppointmentRepository {
     return _map(doc);
   }
 
-
-
-  // =========================
+  // ==================================================
   // CLIENTE
-  // =========================
-
+  // ==================================================
 
   Future<List<AppointmentModel>> getAppointmentsByUser({
     required String userId,
   }) async {
-
     final snap = await _appointments
         .where(
       'userId',
@@ -158,13 +133,10 @@ class AppointmentRepository {
 
     return _list(snap);
   }
-
-
 
   Stream<List<AppointmentModel>> watchAppointmentsByUser({
     required String userId,
   }) {
-
     return _appointments
         .where(
       'userId',
@@ -178,17 +150,13 @@ class AppointmentRepository {
         .map(_list);
   }
 
-
-
-  // =========================
+  // ==================================================
   // SALONE
-  // =========================
-
+  // ==================================================
 
   Future<List<AppointmentModel>> getAppointmentsBySalon({
     required String salonId,
   }) async {
-
     final snap = await _appointments
         .where(
       'salonId',
@@ -203,12 +171,9 @@ class AppointmentRepository {
     return _list(snap);
   }
 
-
-
   Stream<List<AppointmentModel>> watchAppointmentsBySalon({
     required String salonId,
   }) {
-
     return _appointments
         .where(
       'salonId',
@@ -222,17 +187,13 @@ class AppointmentRepository {
         .map(_list);
   }
 
-
-
-  // =========================
+  // ==================================================
   // DIPENDENTE
-  // =========================
-
+  // ==================================================
 
   Future<List<AppointmentModel>> getAppointmentsByEmployee({
     required String employeeId,
   }) async {
-
     final snap = await _appointments
         .where(
       'employeeId',
@@ -247,9 +208,9 @@ class AppointmentRepository {
     return _list(snap);
   }
 
-  // =========================
-// DIPENDENTE + DATA
-// =========================
+  // ==================================================
+  // DIPENDENTE + DATA
+  // ==================================================
 
   Future<List<AppointmentModel>> getEmployeeAppointmentsByDate({
     required String employeeId,
@@ -290,16 +251,13 @@ class AppointmentRepository {
     return _list(snap);
   }
 
-
-  // =========================
+  // ==================================================
   // COMPLETATE CLIENTE
-  // =========================
-
+  // ==================================================
 
   Future<List<AppointmentModel>> getCompletedAppointmentsByUser({
     required String userId,
   }) async {
-
     final snap = await _appointments
         .where(
       'userId',
@@ -318,55 +276,37 @@ class AppointmentRepository {
     return _list(snap);
   }
 
-
-
-  // =========================
+  // ==================================================
   // STATUS
-  // =========================
-
+  // ==================================================
 
   Future<void> updateStatus({
     required String appointmentId,
     required String status,
   }) {
-
-    return _appointments
-        .doc(appointmentId)
-        .update({
-
+    return _appointments.doc(appointmentId).update({
       'status': status,
-
-      'updatedAt':
-      Timestamp.now(),
-
+      'updatedAt': Timestamp.now(),
     });
   }
-
-
 
   Future<void> cancelAppointment({
     required String appointmentId,
   }) {
-
     return updateStatus(
       appointmentId: appointmentId,
       status: 'Annullata',
     );
   }
 
-
-
-  // =========================
-  // DATE
-  // =========================
-
+  // ==================================================
+  // SALONE + DATA
+  // ==================================================
 
   Future<List<AppointmentModel>> getAppointmentsBySalonAndDate({
     required String salonId,
     required DateTime date,
   }) async {
-
-
     final start = Timestamp.fromDate(
       DateTime(
         date.year,
@@ -375,7 +315,6 @@ class AppointmentRepository {
       ),
     );
 
-
     final end = Timestamp.fromDate(
       DateTime(
         date.year,
@@ -383,8 +322,6 @@ class AppointmentRepository {
         date.day + 1,
       ),
     );
-
-
 
     final snap = await _appointments
         .where(
@@ -399,24 +336,20 @@ class AppointmentRepository {
       'date',
       isLessThan: end,
     )
-        .orderBy(
-      'date',
-    )
+        .orderBy('date')
         .get();
-
 
     return _list(snap);
   }
 
-
-
+  // ==================================================
+  // CLIENTE + DATA
+  // ==================================================
 
   Future<List<AppointmentModel>> getAppointmentsByUserAndDate({
     required String userId,
     required DateTime date,
   }) async {
-
-
     final start = Timestamp.fromDate(
       DateTime(
         date.year,
@@ -425,7 +358,6 @@ class AppointmentRepository {
       ),
     );
 
-
     final end = Timestamp.fromDate(
       DateTime(
         date.year,
@@ -433,8 +365,6 @@ class AppointmentRepository {
         date.day + 1,
       ),
     );
-
-
 
     final snap = await _appointments
         .where(
@@ -449,11 +379,8 @@ class AppointmentRepository {
       'date',
       isLessThan: end,
     )
-        .orderBy(
-      'date',
-    )
+        .orderBy('date')
         .get();
-
 
     return _list(snap);
   }

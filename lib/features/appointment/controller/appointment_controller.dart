@@ -22,6 +22,7 @@ class AppointmentController extends ChangeNotifier {
 
   void setSalonId(String? salonId) {
     if (_salonId == salonId) return;
+
     _salonId = salonId;
     notifyListeners();
     loadAppointments();
@@ -97,55 +98,21 @@ class AppointmentController extends ChangeNotifier {
     }
   }
 
-  Future<void> updateAppointment(AppointmentModel appointment) async {
-    try {
-      await _service.updateAppointment(
-        appointment: appointment,
-      );
-
-      final index =
-      _appointments.indexWhere((a) => a.id == appointment.id);
-
-      if (index != -1) {
-        _appointments[index] = appointment;
-      }
-
-      notifyListeners();
-    } catch (e) {
-      _error = e.toString();
-      notifyListeners();
-    }
-  }
-
-  Future<void> deleteAppointment(String id) async {
-    try {
-      await _service.deleteAppointment(
-        appointmentId: id,
-      );
-
-      _appointments.removeWhere((a) => a.id == id);
-      notifyListeners();
-    } catch (e) {
-      _error = e.toString();
-      notifyListeners();
-    }
-  }
-
   Future<void> cancelAppointment(String id) async {
     try {
       await _service.cancelAppointment(
         appointmentId: id,
       );
 
-      final index =
-      _appointments.indexWhere((a) => a.id == id);
+      final index = _appointments.indexWhere(
+            (a) => a.id == id,
+      );
 
       if (index != -1) {
-        _appointments[index] =
-            _appointments[index].copyWith(
-              status: 'Annullata',
-              updatedAt: DateTime.now().toTimestamp(),
-            );
+        _appointments[index] = _appointments[index].copyWith(
+          status: 'Annullata',
+          updatedAt: Timestamp.now(),
+        );
       }
 
       notifyListeners();
@@ -219,11 +186,8 @@ class AppointmentController extends ChangeNotifier {
 
   void _setLoading(bool value) {
     if (_isLoading == value) return;
+
     _isLoading = value;
     notifyListeners();
   }
-}
-
-extension DateTimeExtension on DateTime {
-  Timestamp toTimestamp() => Timestamp.fromDate(this);
 }

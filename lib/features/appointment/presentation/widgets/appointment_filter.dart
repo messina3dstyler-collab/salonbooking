@@ -26,8 +26,7 @@ enum AppointmentFilter {
   final String label;
 
   bool matches(String status) {
-    final normalized =
-    status.trim().toLowerCase();
+    final normalized = status.trim().toLowerCase();
 
     switch (this) {
       case AppointmentFilter.all:

@@ -28,7 +28,7 @@ class RejectRequestOperation extends RequestTransactionOperation {
       requestId: updated.id,
       type: RequestTimelineEventType.rejected,
       createdAt: now,
-      author: RequestAuthor.customer,
+      author: RequestTimelineAuthor.customer,
       message: "Il cliente ha rifiutato la proposta.",
     );
 

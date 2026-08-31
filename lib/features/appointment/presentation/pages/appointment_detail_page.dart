@@ -11,7 +11,7 @@ import '../../../review/widgets/review_form_dialog.dart';
 import '../../../service/models/service_model.dart';
 import '../../models/appointment_model.dart';
 
-class AppointmentDetailPage extends ConsumerStatefulWidget{
+class AppointmentDetailPage extends ConsumerStatefulWidget {
   const AppointmentDetailPage({
     super.key,
     required this.appointment,
@@ -20,55 +20,49 @@ class AppointmentDetailPage extends ConsumerStatefulWidget{
   final AppointmentModel appointment;
 
   @override
-  ConsumerState<AppointmentDetailPage> createState()=>_AppointmentDetailPageState();
+  ConsumerState<AppointmentDetailPage> createState() =>
+      _AppointmentDetailPageState();
 }
 
-class _AppointmentDetailPageState extends ConsumerState<AppointmentDetailPage>{
-
+class _AppointmentDetailPageState
+    extends ConsumerState<AppointmentDetailPage> {
   late AppointmentModel appointment;
 
   ReviewModel? review;
-
   EmployeeModel? employee;
-
   ServiceModel? service;
+  Map<String, dynamic>? customer;
 
-  Map<String,dynamic>? customer;
-
-  bool loading=true;
-
-  bool checkingReview=true;
+  bool loading = true;
+  bool checkingReview = true;
 
   @override
-  void initState(){
+  void initState() {
     super.initState();
-    appointment=widget.appointment;
+
+    appointment = widget.appointment;
+
     _loadData();
   }
 
-  Future<void> _loadData()async{
-
-    try{
-
-      final userFuture=
-      FirebaseFirestore.instance
+  Future<void> _loadData() async {
+    try {
+      final userFuture = FirebaseFirestore.instance
           .collection('users')
           .doc(appointment.userId)
           .get();
 
-      final employeeFuture=
-      FirebaseFirestore.instance
+      final employeeFuture = FirebaseFirestore.instance
           .collection('employees')
           .doc(appointment.employeeId)
           .get();
 
-      final serviceFuture=
-      FirebaseFirestore.instance
+      final serviceFuture = FirebaseFirestore.instance
           .collection('services')
           .doc(appointment.serviceId)
           .get();
 
-      final results=await Future.wait([
+      final results = await Future.wait([
         userFuture,
         employeeFuture,
         serviceFuture,
@@ -78,71 +72,60 @@ class _AppointmentDetailPageState extends ConsumerState<AppointmentDetailPage>{
       final employeeDoc = results[1];
       final serviceDoc = results[2];
 
-      if(userDoc.exists){
-        customer=userDoc.data();
+      if (userDoc.exists) {
+        customer = userDoc.data();
       }
 
-      if(employeeDoc.exists){
-        employee=EmployeeModel.fromMap(
+      if (employeeDoc.exists) {
+        employee = EmployeeModel.fromMap(
           employeeDoc.id,
           employeeDoc.data()!,
         );
       }
 
-      if(serviceDoc.exists){
-        service=ServiceModel.fromMap(
+      if (serviceDoc.exists) {
+        service = ServiceModel.fromMap(
           serviceDoc.id,
           serviceDoc.data()!,
         );
       }
 
       await _checkReview();
-
-    }finally{
-
-      if(mounted){
-        setState(()=>loading=false);
+    } finally {
+      if (mounted) {
+        setState(() {
+          loading = false;
+        });
       }
-
     }
   }
 
-  Future<void> _checkReview()async{
-
-    try{
-
-      review=
-      await ref
+  Future<void> _checkReview() async {
+    try {
+      review = await ref
           .read(reviewControllerProvider)
           .getAppointmentReview(
-        salonId:appointment.salonId,
-        appointmentId:appointment.id,
+        salonId: appointment.salonId,
+        appointmentId: appointment.id,
       );
 
-      if(review!=null){
-
-        appointment=
-            appointment.copyWith(
-              reviewId:review!.id,
-              hasReview:true,
-            );
-
+      if (review != null) {
+        appointment = appointment.copyWith(
+          reviewId: review!.id,
+          hasReview: true,
+        );
       }
-
-    }finally{
-
-      if(mounted){
-        setState(()=>checkingReview=false);
+    } finally {
+      if (mounted) {
+        setState(() {
+          checkingReview = false;
+        });
       }
-
     }
-
   }
 
-  Color _statusColor(){
-
-    switch(appointment.normalizedStatus){
-
+  Color _statusColor() {
+    switch (appointment.normalizedStatus) {
       case 'confermata':
         return Colors.green;
 
@@ -154,88 +137,75 @@ class _AppointmentDetailPageState extends ConsumerState<AppointmentDetailPage>{
 
       default:
         return Colors.orange;
-
     }
-
   }
 
   Widget item(
-    IconData icon,
-    String title,
-    String value,
-  ){
-
+      IconData icon,
+      String title,
+      String value,
+      ) {
     return ListTile(
-      leading:Icon(icon),
-      title:Text(title),
-      subtitle:Text(
-        value.isEmpty
-            ? '--'
-            : value,
+      leading: Icon(icon),
+      title: Text(title),
+      subtitle: Text(
+        value.isEmpty ? '--' : value,
       ),
     );
-
   }
 
-  Future<void> openReview()async{
-
-    final saved=
-    await showDialog<bool>(
-      context:context,
-      builder:(_)=>ReviewFormDialog(
-        appointment:appointment,
+  Future<void> openReview() async {
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (_) => ReviewFormDialog(
+        appointment: appointment,
       ),
     );
 
-    if(saved==true){
-
-      setState(()=>checkingReview=true);
+    if (saved == true) {
+      setState(() {
+        checkingReview = true;
+      });
 
       await _checkReview();
-
     }
-
   }
 
   @override
-  Widget build(BuildContext context){
-
-    if(loading){
-
+  Widget build(BuildContext context) {
+    if (loading) {
       return const Scaffold(
-        body:Center(
-          child:CircularProgressIndicator(),
+        body: Center(
+          child: CircularProgressIndicator(),
         ),
       );
-
     }
 
-    final date=appointment.appointmentDate;
+    final date = appointment.appointmentDate;
+    final statusColor = _statusColor();
 
-    final statusColor=_statusColor();
     return Scaffold(
       backgroundColor: AppColors.background,
-
       appBar: AppBar(
         title: const Text('Dettaglio appuntamento'),
       ),
-
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpacing.xl),
-
+        padding: const EdgeInsets.all(
+          AppSpacing.xl,
+        ),
         child: Card(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.xl),
+            borderRadius: BorderRadius.circular(
+              AppRadius.xl,
+            ),
           ),
-
           child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.xl),
-
+            padding: const EdgeInsets.all(
+              AppSpacing.xl,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-
               children: [
-
                 Text(
                   'Informazioni prenotazione',
                   style: AppTextStyles.titleLarge,
@@ -341,9 +311,7 @@ class _AppointmentDetailPageState extends ConsumerState<AppointmentDetailPage>{
                     Icons.info,
                     color: statusColor,
                   ),
-
                   title: const Text('Stato'),
-
                   subtitle: Text(
                     appointment.displayStatus,
                     style: TextStyle(
@@ -354,7 +322,6 @@ class _AppointmentDetailPageState extends ConsumerState<AppointmentDetailPage>{
                 ),
 
                 if (appointment.notes.isNotEmpty) ...[
-
                   const Divider(),
 
                   item(
@@ -362,48 +329,38 @@ class _AppointmentDetailPageState extends ConsumerState<AppointmentDetailPage>{
                     'Note',
                     appointment.notes,
                   ),
-
                 ],
 
                 if (appointment.isCompleted) ...[
-
                   const Divider(),
 
                   if (checkingReview)
-
                     const Center(
                       child: CircularProgressIndicator(),
                     )
-
                   else if (review != null)
-
                     ListTile(
                       leading: const Icon(
                         Icons.rate_review,
                         color: Colors.amber,
                       ),
-
                       title: const Text(
                         'Recensione inviata',
                       ),
-
                       subtitle: Text(
                         '${review!.rating.toStringAsFixed(1)} ⭐',
                       ),
                     )
-
                   else
-
                     SizedBox(
                       width: double.infinity,
-
                       child: ElevatedButton.icon(
-                        icon: const Icon(Icons.rate_review),
-
+                        icon: const Icon(
+                          Icons.rate_review,
+                        ),
                         label: const Text(
                           'Lascia recensione',
                         ),
-
                         onPressed: openReview,
                       ),
                     ),

@@ -8,15 +8,19 @@ class RevenueBuilder {
   RevenueOverviewModel build(
       List<AppointmentModel> appointments,
       ) {
-    final expectedRevenue = appointments
-        .where((appointment) => !appointment.isCancelled)
-        .fold<double>(
+    final validAppointments = appointments.where(
+          (appointment) => !appointment.isCancelled,
+    );
+
+    final expectedRevenue = validAppointments.fold<double>(
       0,
           (total, appointment) => total + appointment.price,
     );
 
     return RevenueOverviewModel(
       expectedRevenue: expectedRevenue,
+      today: expectedRevenue,
+      collectedRevenue: 0,
     );
   }
 }

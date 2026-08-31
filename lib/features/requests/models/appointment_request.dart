@@ -22,6 +22,8 @@ enum AppointmentRequestStatus {
   cancelled,
 }
 
+/// Chi ha creato la proposta oppure chi ha generato
+/// un evento nella timeline.
 enum RequestAuthor {
   admin,
   employee,
@@ -29,6 +31,7 @@ enum RequestAuthor {
   system,
 }
 
+/// Chi deve compiere la prossima azione.
 enum RequestActionOwner {
   salon,
   customer,
@@ -64,6 +67,7 @@ class AppointmentRequest {
 
   final String id;
 
+  /// Appuntamento sul quale viene proposta la modifica.
   final String appointmentId;
 
   final String salonId;
@@ -73,11 +77,14 @@ class AppointmentRequest {
   final String customerName;
   final String customerPhone;
 
-  /// Chi ha creato la richiesta.
+  /// Chi ha creato la proposta.
+  ///
+  /// Nel modello applicativo il customer non crea Request.
+  /// La proposta può essere creata dal salone/admin,
+  /// da un dipendente operativo del salone oppure dal sistema.
   final RequestAuthor createdBy;
   final String createdByName;
 
-  /// Priorità della richiesta.
   final RequestPriority priority;
 
   final AppointmentRequestType type;
@@ -88,6 +95,7 @@ class AppointmentRequest {
 
   final DateTime updatedAt;
 
+  /// Dati specifici della proposta.
   final Map<String, dynamic> payload;
 
   AppointmentRequest copyWith({
@@ -158,17 +166,17 @@ class AppointmentRequest {
       customerName: map["customerName"] ?? "",
       customerPhone: map["customerPhone"] ?? "",
       createdBy: RequestAuthor.values.byName(
-        map["createdBy"],
+        map["createdBy"] ?? "admin",
       ),
       createdByName: map["createdByName"] ?? "",
       priority: RequestPriority.values.byName(
         map["priority"] ?? "normal",
       ),
       type: AppointmentRequestType.values.byName(
-        map["type"],
+        map["type"] ?? "custom",
       ),
       status: AppointmentRequestStatus.values.byName(
-        map["status"],
+        map["status"] ?? "draft",
       ),
       createdAt: DateTime.parse(
         map["createdAt"],
@@ -182,9 +190,9 @@ class AppointmentRequest {
     );
   }
 
-  //--------------------------------------------------
+  // --------------------------------------------------
   // TYPE
-  //--------------------------------------------------
+  // --------------------------------------------------
 
   bool get isReschedule =>
       type == AppointmentRequestType.reschedule;
@@ -201,9 +209,9 @@ class AppointmentRequest {
   bool get isCustom =>
       type == AppointmentRequestType.custom;
 
-  //--------------------------------------------------
+  // --------------------------------------------------
   // STATUS
-  //--------------------------------------------------
+  // --------------------------------------------------
 
   bool get isDraft =>
       status == AppointmentRequestStatus.draft;
@@ -229,9 +237,9 @@ class AppointmentRequest {
           isExpired ||
           isCancelled;
 
-  //--------------------------------------------------
+  // --------------------------------------------------
   // AUTHOR
-  //--------------------------------------------------
+  // --------------------------------------------------
 
   bool get createdByAdmin =>
       createdBy == RequestAuthor.admin;
@@ -239,15 +247,12 @@ class AppointmentRequest {
   bool get createdByEmployee =>
       createdBy == RequestAuthor.employee;
 
-  bool get createdByCustomer =>
-      createdBy == RequestAuthor.customer;
-
   bool get createdBySystem =>
       createdBy == RequestAuthor.system;
 
-  //--------------------------------------------------
+  // --------------------------------------------------
   // PRIORITY
-  //--------------------------------------------------
+  // --------------------------------------------------
 
   bool get isLowPriority =>
       priority == RequestPriority.low;
@@ -261,9 +266,9 @@ class AppointmentRequest {
   bool get isUrgentPriority =>
       priority == RequestPriority.urgent;
 
-  //--------------------------------------------------
-// PAYLOAD
-//--------------------------------------------------
+  // --------------------------------------------------
+  // PAYLOAD
+  // --------------------------------------------------
 
   bool get hasPayload => payload.isNotEmpty;
 

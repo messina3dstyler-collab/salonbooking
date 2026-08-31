@@ -28,7 +28,7 @@ class CancelRequestOperation extends RequestTransactionOperation {
       requestId: updated.id,
       type: RequestTimelineEventType.cancelled,
       createdAt: now,
-      author: RequestAuthor.system,
+      author: RequestTimelineAuthor.system,
       message: "Richiesta annullata.",
     );
 

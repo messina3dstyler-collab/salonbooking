@@ -33,8 +33,7 @@ class AppointmentModule {
     repository,
   );
 
-  static final AppointmentRequestServiceBase
-  requestService =
+  static final AppointmentRequestServiceBase requestService =
   AppointmentRequestService(
     repository,
   );

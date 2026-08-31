@@ -29,25 +29,22 @@ abstract class RequestTransactionOperation {
   // COLLECTIONS
   //--------------------------------------------------
 
-  CollectionReference<Map<String, dynamic>>
-  get requests => context.requests;
+  CollectionReference<Map<String, dynamic>> get requests =>
+      context.requests;
 
-  CollectionReference<Map<String, dynamic>>
-  get appointments =>
+  CollectionReference<Map<String, dynamic>> get appointments =>
       firestore.collection("appointments");
 
   //--------------------------------------------------
   // DOCUMENTS
   //--------------------------------------------------
 
-  DocumentReference<Map<String, dynamic>>
-  requestDocument(
+  DocumentReference<Map<String, dynamic>> requestDocument(
       String requestId,
       ) =>
       requests.doc(requestId);
 
-  DocumentReference<Map<String, dynamic>>
-  appointmentDocument(
+  DocumentReference<Map<String, dynamic>> appointmentDocument(
       String appointmentId,
       ) =>
       appointments.doc(appointmentId);
@@ -62,6 +59,16 @@ abstract class RequestTransactionOperation {
       ) {
     return transaction.get(
       requestDocument(requestId),
+    );
+  }
+
+  void createRequestDocument(
+      Map<String, dynamic> data,
+      String requestId,
+      ) {
+    transaction.set(
+      requestDocument(requestId),
+      data,
     );
   }
 

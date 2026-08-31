@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/request_timeline_event.dart';
-import '../extensions/request_author_extension.dart';
+import '../extensions/request_timeline_author_extension.dart';
 import '../extensions/request_timeline_event_extension.dart';
 import '../extensions/request_timeline_event_type_extension.dart';
 

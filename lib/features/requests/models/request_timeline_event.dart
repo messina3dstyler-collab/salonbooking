@@ -1,5 +1,3 @@
-import 'appointment_request.dart';
-
 enum RequestTimelineEventType {
   created,
   updated,
@@ -12,6 +10,13 @@ enum RequestTimelineEventType {
   appointmentUpdated,
   employeeUpdated,
   servicesUpdated,
+  system,
+}
+
+enum RequestTimelineAuthor {
+  admin,
+  employee,
+  customer,
   system,
 }
 
@@ -33,7 +38,7 @@ class RequestTimelineEvent {
 
   final DateTime createdAt;
 
-  final RequestAuthor author;
+  final RequestTimelineAuthor author;
 
   /// Testo opzionale mostrato nella timeline.
   final String? message;
@@ -43,7 +48,7 @@ class RequestTimelineEvent {
     String? requestId,
     RequestTimelineEventType? type,
     DateTime? createdAt,
-    RequestAuthor? author,
+    RequestTimelineAuthor? author,
     String? message,
   }) {
     return RequestTimelineEvent(
@@ -79,7 +84,7 @@ class RequestTimelineEvent {
       createdAt: DateTime.parse(
         map["createdAt"],
       ),
-      author: RequestAuthor.values.byName(
+      author: RequestTimelineAuthor.values.byName(
         map["author"] ?? "system",
       ),
       message: map["message"],

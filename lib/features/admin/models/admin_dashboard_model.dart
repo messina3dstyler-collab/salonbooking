@@ -69,11 +69,9 @@ class AdminDashboardModel {
       totalEmployees:
       totalEmployees ?? this.totalEmployees,
       completedAppointments:
-      completedAppointments ??
-          this.completedAppointments,
+      completedAppointments ?? this.completedAppointments,
       cancelledAppointments:
-      cancelledAppointments ??
-          this.cancelledAppointments,
+      cancelledAppointments ?? this.cancelledAppointments,
       topService: topService ?? this.topService,
       topEmployee: topEmployee ?? this.topEmployee,
     );
@@ -90,10 +88,10 @@ class AdminDashboardModel {
       todayOverview.pendingRequests;
 
   double get todayRevenue =>
-      todayOverview.revenue.today;
+      todayOverview.revenue.expectedRevenue;
 
   String get formattedRevenue =>
-      "€ ${todayRevenue.toStringAsFixed(2)}";
+      '€ ${todayRevenue.toStringAsFixed(2)}';
 
   //--------------------------------------------------
   // HELPERS

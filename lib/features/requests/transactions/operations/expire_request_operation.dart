@@ -28,7 +28,7 @@ class ExpireRequestOperation extends RequestTransactionOperation {
       requestId: updated.id,
       type: RequestTimelineEventType.expired,
       createdAt: now,
-      author: RequestAuthor.system,
+      author: RequestTimelineAuthor.system,
       message: "La richiesta è scaduta.",
     );
 

@@ -66,8 +66,7 @@ class RequestWorkflowServiceImpl implements RequestWorkflowService {
   Future<AppointmentRequest> _create(
       AppointmentRequest request,
       ) async {
-    final creationError =
-    _creationValidator.validate(
+    final creationError = _creationValidator.validate(
       request,
     );
 
@@ -77,8 +76,7 @@ class RequestWorkflowServiceImpl implements RequestWorkflowService {
       );
     }
 
-    final stateError =
-    _stateValidator.validateCreation(
+    final stateError = _stateValidator.validateCreation(
       request,
     );
 
@@ -103,6 +101,21 @@ class RequestWorkflowServiceImpl implements RequestWorkflowService {
   Future<void> sendRequest(
       String requestId,
       ) async {
+    final request = await _loadRequest(
+      requestId,
+    );
+
+    final stateError = _stateValidator.validateTransition(
+      from: request.status,
+      to: AppointmentRequestStatus.pendingCustomer,
+    );
+
+    if (stateError != null) {
+      throw RequestValidationException(
+        stateError,
+      );
+    }
+
     await _transaction.sendRequest(
       requestId: requestId,
     );
@@ -116,19 +129,11 @@ class RequestWorkflowServiceImpl implements RequestWorkflowService {
   Future<void> acceptRequest(
       String requestId,
       ) async {
-    final request =
-    await _datasource.getById(
+    final request = await _loadRequest(
       requestId,
     );
 
-    if (request == null) {
-      throw const RequestValidationException(
-        "Richiesta inesistente.",
-      );
-    }
-
-    final stateError =
-    _stateValidator.validateAccept(
+    final stateError = _stateValidator.validateAccept(
       request,
     );
 
@@ -138,8 +143,7 @@ class RequestWorkflowServiceImpl implements RequestWorkflowService {
       );
     }
 
-    final responseError =
-    _responseValidator.validateAccept(
+    final responseError = _responseValidator.validateAccept(
       request,
     );
 
@@ -162,19 +166,11 @@ class RequestWorkflowServiceImpl implements RequestWorkflowService {
   Future<void> rejectRequest(
       String requestId,
       ) async {
-    final request =
-    await _datasource.getById(
+    final request = await _loadRequest(
       requestId,
     );
 
-    if (request == null) {
-      throw const RequestValidationException(
-        "Richiesta inesistente.",
-      );
-    }
-
-    final stateError =
-    _stateValidator.validateReject(
+    final stateError = _stateValidator.validateReject(
       request,
     );
 
@@ -184,8 +180,7 @@ class RequestWorkflowServiceImpl implements RequestWorkflowService {
       );
     }
 
-    final responseError =
-    _responseValidator.validateReject(
+    final responseError = _responseValidator.validateReject(
       request,
     );
 
@@ -208,6 +203,31 @@ class RequestWorkflowServiceImpl implements RequestWorkflowService {
   Future<void> cancelRequest(
       String requestId,
       ) async {
+    final request = await _loadRequest(
+      requestId,
+    );
+
+    final stateError = _stateValidator.validateTransition(
+      from: request.status,
+      to: AppointmentRequestStatus.cancelled,
+    );
+
+    if (stateError != null) {
+      throw RequestValidationException(
+        stateError,
+      );
+    }
+
+    final responseError = _responseValidator.validateCancel(
+      request,
+    );
+
+    if (responseError != null) {
+      throw RequestValidationException(
+        responseError,
+      );
+    }
+
     await _transaction.cancelRequest(
       requestId: requestId,
     );
@@ -221,6 +241,58 @@ class RequestWorkflowServiceImpl implements RequestWorkflowService {
   Future<void> expireRequest(
       String requestId,
       ) async {
+    final request = await _loadRequest(
+      requestId,
+    );
+
+    final stateError = _stateValidator.validateTransition(
+      from: request.status,
+      to: AppointmentRequestStatus.expired,
+    );
+
+    if (stateError != null) {
+      throw RequestValidationException(
+        stateError,
+      );
+    }
+
+    if (request.status !=
+        AppointmentRequestStatus.pendingCustomer) {
+      throw const RequestValidationException(
+        "È possibile far scadere solo una richiesta in attesa del cliente.",
+      );
+    }
+
+    final expiresAt = request.payload["expiresAt"];
+
+    if (expiresAt == null) {
+      throw const RequestValidationException(
+        "La richiesta non contiene una data di scadenza.",
+      );
+    }
+
+    DateTime? expiration;
+
+    if (expiresAt is DateTime) {
+      expiration = expiresAt;
+    } else if (expiresAt is String) {
+      expiration = DateTime.tryParse(
+        expiresAt,
+      );
+    }
+
+    if (expiration == null) {
+      throw const RequestValidationException(
+        "La data di scadenza della richiesta non è valida.",
+      );
+    }
+
+    if (!DateTime.now().isAfter(expiration)) {
+      throw const RequestValidationException(
+        "La richiesta non è ancora scaduta.",
+      );
+    }
+
     await _transaction.expireRequest(
       requestId: requestId,
     );
@@ -234,6 +306,20 @@ class RequestWorkflowServiceImpl implements RequestWorkflowService {
   Future<void> remindCustomer(
       String requestId,
       ) async {
+    final request = await _loadRequest(
+      requestId,
+    );
+
+    final responseError = _responseValidator.validateReminder(
+      request,
+    );
+
+    if (responseError != null) {
+      throw RequestValidationException(
+        responseError,
+      );
+    }
+
     await _transaction.remindCustomer(
       requestId: requestId,
     );
@@ -247,6 +333,12 @@ class RequestWorkflowServiceImpl implements RequestWorkflowService {
   Future<bool> canCreateRequest(
       String appointmentId,
       ) async {
+    // Al momento non modifichiamo questo metodo:
+    // con la firma attuale non è possibile verificare
+    // l'appuntamento senza introdurre una nuova dipendenza.
+    //
+    // La sicurezza reale della creazione passa già
+    // attraverso _create() e i relativi validator.
     return true;
   }
 
@@ -254,13 +346,73 @@ class RequestWorkflowServiceImpl implements RequestWorkflowService {
   Future<bool> canAcceptRequest(
       String requestId,
       ) async {
-    return true;
+    try {
+      final request = await _loadRequest(
+        requestId,
+      );
+
+      final stateError = _stateValidator.validateAccept(
+        request,
+      );
+
+      if (stateError != null) {
+        return false;
+      }
+
+      final responseError = _responseValidator.validateAccept(
+        request,
+      );
+
+      return responseError == null;
+    } catch (_) {
+      return false;
+    }
   }
 
   @override
   Future<bool> canRejectRequest(
       String requestId,
       ) async {
-    return true;
+    try {
+      final request = await _loadRequest(
+        requestId,
+      );
+
+      final stateError = _stateValidator.validateReject(
+        request,
+      );
+
+      if (stateError != null) {
+        return false;
+      }
+
+      final responseError = _responseValidator.validateReject(
+        request,
+      );
+
+      return responseError == null;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  //--------------------------------------------------
+  // LOAD
+  //--------------------------------------------------
+
+  Future<AppointmentRequest> _loadRequest(
+      String requestId,
+      ) async {
+    final request = await _datasource.getById(
+      requestId,
+    );
+
+    if (request == null) {
+      throw const RequestValidationException(
+        "Richiesta inesistente.",
+      );
+    }
+
+    return request;
   }
 }

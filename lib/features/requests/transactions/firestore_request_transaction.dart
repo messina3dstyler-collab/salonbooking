@@ -255,9 +255,15 @@ class FirestoreRequestTransaction
         final context =
         _context(transaction);
 
+        final request =
+        await _loadRequest(
+          context,
+          requestId,
+        );
+
         await ReminderRequestOperation(
           context,
-        ).execute(requestId);
+        ).execute(request);
       },
     );
   }

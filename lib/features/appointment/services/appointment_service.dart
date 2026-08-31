@@ -9,7 +9,7 @@ class AppointmentService {
   final AppointmentRepository _repository;
 
   //--------------------------------------------------
-  // CRUD
+  // CREATION
   //--------------------------------------------------
 
   Future<void> createAppointment({
@@ -19,76 +19,24 @@ class AppointmentService {
         appointment: appointment,
       );
 
-  Future<void> updateAppointment({
-    required AppointmentModel appointment,
-  }) =>
-      _repository.updateAppointment(
-        appointment: appointment,
-      );
+  //--------------------------------------------------
+  // REQUEST APPLICATION SUPPORT
+  //--------------------------------------------------
 
   Future<void> patchAppointment({
     required String appointmentId,
     required Map<String, dynamic> changes,
+    Transaction? transaction,
   }) =>
       _repository.patchAppointment(
         appointmentId: appointmentId,
         changes: changes,
-      );
-
-  Future<void> deleteAppointment({
-    required String appointmentId,
-  }) =>
-      _repository.deleteAppointment(
-        appointmentId: appointmentId,
+        transaction: transaction,
       );
 
   //--------------------------------------------------
-  // BUSINESS
+  // CLIENTE
   //--------------------------------------------------
-
-  Future<void> rescheduleAppointment({
-    required String appointmentId,
-    required DateTime newStart,
-    required int duration,
-    String? employeeId,
-  }) async {
-    final changes = <String, dynamic>{
-      "date": Timestamp.fromDate(newStart),
-      "duration": duration,
-    };
-
-    if (employeeId != null &&
-        employeeId.isNotEmpty) {
-      changes["employeeId"] = employeeId;
-    }
-
-    await patchAppointment(
-      appointmentId: appointmentId,
-      changes: changes,
-    );
-  }
-
-  Future<void> changeEmployee({
-    required String appointmentId,
-    required String employeeId,
-  }) async {
-    await patchAppointment(
-      appointmentId: appointmentId,
-      changes: {
-        "employeeId": employeeId,
-      },
-    );
-  }
-
-  Future<void> changeService({
-    required String appointmentId,
-    required Map<String, dynamic> serviceData,
-  }) async {
-    await patchAppointment(
-      appointmentId: appointmentId,
-      changes: serviceData,
-    );
-  }
 
   Future<void> cancelAppointment({
     required String appointmentId,
@@ -108,32 +56,28 @@ class AppointmentService {
         appointmentId: appointmentId,
       );
 
-  Future<List<AppointmentModel>>
-  getAppointmentsByUser({
+  Future<List<AppointmentModel>> getAppointmentsByUser({
     required String userId,
   }) =>
       _repository.getAppointmentsByUser(
         userId: userId,
       );
 
-  Future<List<AppointmentModel>>
-  getAppointmentsBySalon({
+  Future<List<AppointmentModel>> getAppointmentsBySalon({
     required String salonId,
   }) =>
       _repository.getAppointmentsBySalon(
         salonId: salonId,
       );
 
-  Future<List<AppointmentModel>>
-  getAppointmentsByEmployee({
+  Future<List<AppointmentModel>> getAppointmentsByEmployee({
     required String employeeId,
   }) =>
       _repository.getAppointmentsByEmployee(
         employeeId: employeeId,
       );
 
-  Future<List<AppointmentModel>>
-  getEmployeeAppointmentsByDate({
+  Future<List<AppointmentModel>> getEmployeeAppointmentsByDate({
     required String employeeId,
     required DateTime date,
   }) =>
@@ -142,47 +86,28 @@ class AppointmentService {
         date: date,
       );
 
-  Future<List<AppointmentModel>>
-  getCompletedAppointmentsByUser({
+  Future<List<AppointmentModel>> getCompletedAppointmentsByUser({
     required String userId,
   }) =>
-      _repository
-          .getCompletedAppointmentsByUser(
+      _repository.getCompletedAppointmentsByUser(
         userId: userId,
       );
 
-  Future<List<AppointmentModel>>
-  getAppointmentsBySalonAndDate({
+  Future<List<AppointmentModel>> getAppointmentsBySalonAndDate({
     required String salonId,
     required DateTime date,
   }) =>
-      _repository
-          .getAppointmentsBySalonAndDate(
+      _repository.getAppointmentsBySalonAndDate(
         salonId: salonId,
         date: date,
       );
 
-  Future<List<AppointmentModel>>
-  getAppointmentsByUserAndDate({
+  Future<List<AppointmentModel>> getAppointmentsByUserAndDate({
     required String userId,
     required DateTime date,
   }) =>
-      _repository
-          .getAppointmentsByUserAndDate(
+      _repository.getAppointmentsByUserAndDate(
         userId: userId,
         date: date,
-      );
-
-  //--------------------------------------------------
-  // STATUS
-  //--------------------------------------------------
-
-  Future<void> updateStatus({
-    required String appointmentId,
-    required String status,
-  }) =>
-      _repository.updateStatus(
-        appointmentId: appointmentId,
-        status: status,
       );
 }

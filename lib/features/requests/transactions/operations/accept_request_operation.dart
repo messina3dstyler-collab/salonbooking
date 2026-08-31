@@ -15,8 +15,7 @@ class AcceptRequestOperation extends RequestTransactionOperation {
     // UPDATE APPOINTMENT
     //--------------------------------------------------
 
-    await context.appointmentRequestService
-        .applyAcceptedRequest(
+    await context.appointmentRequestService.applyAcceptedRequest(
       request: request,
       transaction: transaction,
     );
@@ -25,9 +24,11 @@ class AcceptRequestOperation extends RequestTransactionOperation {
     // UPDATE REQUEST
     //--------------------------------------------------
 
+    final now = DateTime.now();
+
     final updated = request.copyWith(
       status: AppointmentRequestStatus.accepted,
-      updatedAt: DateTime.now(),
+      updatedAt: now,
     );
 
     updateRequestDocument(
@@ -39,19 +40,13 @@ class AcceptRequestOperation extends RequestTransactionOperation {
     // TIMELINE
     //--------------------------------------------------
 
-    final now = DateTime.now();
-
-    final appointmentEvent =
-    RequestTimelineEvent(
-      id: now.microsecondsSinceEpoch
-          .toString(),
+    final appointmentEvent = RequestTimelineEvent(
+      id: now.microsecondsSinceEpoch.toString(),
       requestId: updated.id,
-      type: RequestTimelineEventType
-          .appointmentUpdated,
+      type: RequestTimelineEventType.appointmentUpdated,
       createdAt: now,
-      author: RequestAuthor.system,
-      message:
-      "L'appuntamento è stato aggiornato.",
+      author: RequestTimelineAuthor.system,
+      message: "L'appuntamento è stato aggiornato.",
     );
 
     createTimelineEvent(
@@ -62,18 +57,13 @@ class AcceptRequestOperation extends RequestTransactionOperation {
       ),
     );
 
-    final acceptedEvent =
-    RequestTimelineEvent(
-      id: (now.microsecondsSinceEpoch + 1)
-          .toString(),
+    final acceptedEvent = RequestTimelineEvent(
+      id: (now.microsecondsSinceEpoch + 1).toString(),
       requestId: updated.id,
-      type:
-      RequestTimelineEventType
-          .accepted,
+      type: RequestTimelineEventType.accepted,
       createdAt: now,
-      author: RequestAuthor.customer,
-      message:
-      "La richiesta è stata accettata.",
+      author: RequestTimelineAuthor.customer,
+      message: "La richiesta è stata accettata.",
     );
 
     createTimelineEvent(

@@ -49,6 +49,10 @@ class TodayOverviewModel {
     );
   }
 
+  //--------------------------------------------------
+  // COPY
+  //--------------------------------------------------
+
   TodayOverviewModel copyWith({
     DateTime? date,
     int? todayAppointments,
@@ -89,8 +93,7 @@ class TodayOverviewModel {
       nextAppointment.hasAppointment;
 
   bool get hasRevenue =>
-      revenue.expectedRevenue > 0 ||
-          revenue.collectedRevenue > 0;
+      revenue.expectedRevenue > 0;
 
   bool get hasTasks =>
       tasks.hasTasks;
@@ -99,8 +102,7 @@ class TodayOverviewModel {
       team
           .where(
             (e) =>
-        e.status ==
-            EmployeeStatus.available,
+        e.status == EmployeeStatus.available,
       )
           .length;
 
@@ -108,8 +110,7 @@ class TodayOverviewModel {
       team
           .where(
             (e) =>
-        e.status ==
-            EmployeeStatus.busy,
+        e.status == EmployeeStatus.busy,
       )
           .length;
 
@@ -117,8 +118,7 @@ class TodayOverviewModel {
       team
           .where(
             (e) =>
-        e.status ==
-            EmployeeStatus.pause,
+        e.status == EmployeeStatus.pause,
       )
           .length;
 
@@ -126,8 +126,7 @@ class TodayOverviewModel {
       team
           .where(
             (e) =>
-        e.status ==
-            EmployeeStatus.offline,
+        e.status == EmployeeStatus.offline,
       )
           .length;
 }

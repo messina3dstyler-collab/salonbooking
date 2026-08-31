@@ -57,9 +57,6 @@ extension AppointmentRequestAuthorExtension on AppointmentRequest {
   bool get createdByEmployee =>
       createdBy == RequestAuthor.employee;
 
-  bool get createdByCustomer =>
-      createdBy == RequestAuthor.customer;
-
   bool get createdBySystem =>
       createdBy == RequestAuthor.system;
 }
