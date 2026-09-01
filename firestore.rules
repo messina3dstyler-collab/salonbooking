@@ -1,140 +1,613 @@
 rules_version = '2';
 
 service cloud.firestore {
+
   match /databases/{database}/documents {
 
-    // =========================
+    // =========================================================
+    // AUTH
+    // =========================================================
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function currentUser() {
+      return get(
+        /databases/$(database)/documents/users/$(request.auth.uid)
+      );
+    }
+
+    // ---------------------------------------------------------
+    // SALON
+    //
+    // Nell'app il ruolo attuale del Salon è "admin".
+    // Non modifichiamo il codice Dart.
+    //
+    // Employee NON è un utente autenticato.
+    // ---------------------------------------------------------
+
+    function isSalon() {
+      return signedIn()
+      && currentUser().data.role == "admin"
+      && currentUser().data.salonId is string
+      && currentUser().data.salonId != "";
+    }
+
+    function ownsSalon(salonId) {
+      return isSalon()
+      && currentUser().data.salonId == salonId;
+    }
+
+    // ---------------------------------------------------------
+    // USER
+    //
+    // Nell'app il cliente finale è attualmente "customer".
+    // ---------------------------------------------------------
+
+    function isUser() {
+      return signedIn()
+      && currentUser().data.role == "customer";
+    }
+
+    function isOwnUser(userId) {
+      return signedIn()
+      && request.auth.uid == userId;
+    }
+
+
+    // =========================================================
     // USERS
-    // =========================
+    // =========================================================
 
     match /users/{userId} {
 
-      // Il proprietario può leggere il proprio profilo
-      // Gli admin possono leggere tutti i profili
-      allow read: if request.auth != null &&
-        (
-          request.auth.uid == userId ||
+      // Un User può leggere il proprio profilo.
+      // Un Salon può leggere i profili necessari alla propria
+      // gestione.
+      allow read: if
+      isOwnUser(userId)
+      || isSalon();
 
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin"
-        );
+      // Il documento users/{uid} può essere creato solo
+      // dall'utente autenticato corrispondente.
+      //
+      // Il ruolo non può essere scelto arbitrariamente:
+      // sono ammessi solamente Salon(admin) e User(customer).
+      allow create: if
+      isOwnUser(userId)
+      && request.resource.data.role is string
+      && (
+        request.resource.data.role == "admin"
+        || request.resource.data.role == "customer"
+      );
 
-      allow create: if request.auth != null &&
-        request.auth.uid == userId;
+      // L'utente può modificare esclusivamente i propri dati
+      // di profilo.
+      //
+      // NON può modificare:
+      // - role
+      // - salonId
+      // - eventuali altri campi strutturali
+      allow update: if
+      isOwnUser(userId)
+      && request.resource.data.role == resource.data.role
+      && request.resource.data.salonId == resource.data.salonId
+      && request.resource.data.diff(resource.data)
+        .affectedKeys()
+        .hasOnly([
+        "name",
+        "email",
+        "phone",
+        "photoUrl"
+      ]);
 
-      allow update: if request.auth != null &&
-        request.auth.uid == userId;
-
+      // I profili non vengono eliminati dal client.
       allow delete: if false;
     }
 
-    // =========================
-    // ROOT APPOINTMENTS
-    // =========================
 
-    match /appointments/{appointmentId} {
-
-      allow read: if request.auth != null;
-
-      allow create: if request.auth != null;
-
-      allow update, delete: if request.auth != null &&
-        (
-          resource.data.userId == request.auth.uid ||
-
-          (
-            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin" &&
-            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.salonId == resource.data.salonId
-          )
-        );
-    }
-
-    // =========================
+    // =========================================================
     // SALONS
-    // =========================
+    // =========================================================
 
     match /salons/{salonId} {
 
-      // Chiunque autenticato può leggere i dati del salone
-      allow read: if request.auth != null;
+      // I dati del salone sono necessari anche al cliente.
+      allow read: if signedIn();
 
-      // Solo admin del salone può modificarlo
-      allow write: if request.auth != null &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin" &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.salonId == salonId;
+      // Il Salon può creare il proprio documento.
+      allow create: if
+      signedIn()
+      && request.auth.uid == salonId;
 
-      // =========================
-      // APPOINTMENTS
-      // =========================
+      // Il Salon può modificare esclusivamente il proprio salone.
+      //
+      // I campi ammessi corrispondono al SalonModel attuale.
+      allow update: if
+      ownsSalon(salonId)
+      && request.resource.data.diff(resource.data)
+        .affectedKeys()
+        .hasOnly([
+        "name",
+        "address",
+        "city",
+        "imageUrl",
+        "rating",
+        "reviewCount",
+        "phone",
+        "description",
+        "openingHour",
+        "closingHour",
+        "closedWeekdays",
+        "closedDates",
+        "active"
+      ]);
 
-      match /appointments/{appointmentId} {
+      // Un Salon può eliminare solamente il proprio documento.
+      allow delete: if ownsSalon(salonId);
 
-        allow read: if request.auth != null &&
-        (
-          resource.data.userId == request.auth.uid ||
 
-          (
-            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin" &&
-            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.salonId == salonId
-          )
-        );
-
-        allow create,update,delete: if request.auth != null &&
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin" &&
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.salonId == salonId;
-      }
-
-      // =========================
+      // =======================================================
       // EMPLOYEES
-      // =========================
+      // =======================================================
+
+      // Employee NON è un account.
+      //
+      // Sono semplicemente persone appartenenti al team
+      // del Salon.
+      //
+      // Il cliente può leggerli perché servono alla prenotazione.
+      allow read: if signedIn();
 
       match /employees/{employeeId} {
 
-        allow read: if request.auth != null;
+        allow read: if signedIn();
 
-        allow write: if request.auth != null &&
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin" &&
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.salonId == salonId;
+        allow create, update, delete: if
+        ownsSalon(salonId);
       }
 
-      // =========================
+
+      // =======================================================
       // SERVICES
-      // =========================
+      // =======================================================
 
       match /services/{serviceId} {
 
-        allow read: if request.auth != null;
+        allow read: if signedIn();
 
-        allow write: if request.auth != null &&
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin" &&
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.salonId == salonId;
+        allow create, update, delete: if
+        ownsSalon(salonId);
       }
 
-      // =========================
+
+      // =======================================================
       // REVIEWS
-      // =========================
+      // =======================================================
 
       match /reviews/{reviewId} {
 
-        allow read: if request.auth != null;
+        allow read: if signedIn();
 
-        allow create: if request.auth != null;
+        // Solo il cliente autenticato può creare una recensione
+        // per sé stesso e per il salone indicato.
+        allow create: if
+        isUser()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.salonId == salonId;
 
-        allow update,delete: if request.auth != null &&
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin" &&
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.salonId == salonId;
+        // Il Salon può gestire le recensioni del proprio salone.
+        allow update, delete: if
+        ownsSalon(salonId);
+      }
+
+
+      // =======================================================
+      // NESTED APPOINTMENTS
+      // =======================================================
+
+      match /appointments/{appointmentId} {
+
+        allow read: if
+        signedIn()
+        && (
+          (
+            isUser()
+            && resource.data.userId == request.auth.uid
+          )
+          ||
+          ownsSalon(salonId)
+        );
+
+        allow create: if
+        ownsSalon(salonId);
+
+        allow update, delete: if
+        ownsSalon(salonId);
       }
     }
-        // =========================
-        // EMPLOYEE CALENDAR
-        // =========================
 
-        match /employee_calendar/{eventId} {
 
-          allow read: if request.auth != null;
+    // =========================================================
+    // ROOT APPOINTMENTS
+    // =========================================================
 
-          allow create, update, delete: if request.auth != null &&
-            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
+    match /appointments/{appointmentId} {
 
-        }
+      // User -> solo i propri appuntamenti
+      //
+      // Salon -> solo appuntamenti del proprio salone
+      allow read: if
+      signedIn()
+      && (
+        (
+          isUser()
+          && resource.data.userId == request.auth.uid
+        )
+        ||
+        (
+          isSalon()
+          && resource.data.salonId == currentUser().data.salonId
+        )
+      );
+
+      // Creazione:
+      //
+      // User -> può creare un appuntamento per sé.
+      // Salon -> può creare appuntamenti appartenenti al proprio
+      // salone.
+      allow create: if
+      signedIn()
+      && (
+        (
+          isUser()
+          && request.resource.data.userId == request.auth.uid
+        )
+        ||
+        (
+          isSalon()
+          && request.resource.data.salonId
+          == currentUser().data.salonId
+        )
+      );
+
+      // Il Salon può modificare/eliminare esclusivamente
+      // appuntamenti del proprio salone.
+      allow update, delete: if
+      isSalon()
+      && resource.data.salonId
+      == currentUser().data.salonId;
+    }
+
+
+    // =========================================================
+    // APPOINTMENT REQUESTS
+    // =========================================================
+
+    match /appointment_requests/{requestId} {
+
+      // -------------------------------------------------------
+      // READ
+      // -------------------------------------------------------
+
+      // Salon:
+      // solamente Request appartenenti al proprio salone.
+      //
+      // User:
+      // solamente Request di cui è customerId.
+      allow read: if
+      signedIn()
+      && (
+        (
+          isSalon()
+          && resource.data.salonId
+          == currentUser().data.salonId
+        )
+        ||
+        (
+          isUser()
+          && resource.data.customerId
+          == request.auth.uid
+        )
+      );
+
+
+      // -------------------------------------------------------
+      // CREATE
+      // -------------------------------------------------------
+
+      // Le Request vengono create dal Salon.
+      //
+      // Employee NON può crearle perché Employee non è
+      // autenticato.
+      //
+      // Il customer non può inventarsi una Request.
+      allow create: if
+      isSalon()
+      && request.resource.data.id == requestId
+      && request.resource.data.salonId
+      == currentUser().data.salonId
+      && request.resource.data.customerId is string
+      && request.resource.data.customerId != ""
+      && request.resource.data.appointmentId is string
+      && request.resource.data.appointmentId != ""
+      && request.resource.data.createdBy == "admin"
+      && request.resource.data.status == "draft"
+      && request.resource.data.type is string
+      && request.resource.data.priority is string
+      && request.resource.data.payload is map;
+
+
+      // -------------------------------------------------------
+      // UPDATE
+      // -------------------------------------------------------
+
+      // SALON
+      //
+      // Il Salon può modificare solamente:
+      //
+      // - status
+      // - updatedAt
+      //
+      // Tutto ciò che identifica la Request rimane immutabile.
+      //
+      // Transizioni consentite:
+      //
+      // draft
+      //   -> pendingCustomer
+      //
+      // pendingCustomer
+      //   -> cancelled
+      //   -> expired
+      //
+      allow update: if
+      (
+        isSalon()
+        && resource.data.salonId
+        == currentUser().data.salonId
+
+        && request.resource.data.salonId
+        == resource.data.salonId
+
+        && request.resource.data.customerId
+        == resource.data.customerId
+
+        && request.resource.data.appointmentId
+        == resource.data.appointmentId
+
+        && request.resource.data.createdBy
+        == resource.data.createdBy
+
+        && request.resource.data.type
+        == resource.data.type
+
+        && request.resource.data.priority
+        == resource.data.priority
+
+        && request.resource.data.payload
+        == resource.data.payload
+
+        && request.resource.data.diff(resource.data)
+          .affectedKeys()
+          .hasOnly([
+          "status",
+          "updatedAt"
+        ])
+
+        && (
+          (
+            resource.data.status == "draft"
+            && request.resource.data.status
+            == "pendingCustomer"
+          )
+          ||
+          (
+            resource.data.status == "pendingCustomer"
+            && (
+              request.resource.data.status == "cancelled"
+              ||
+              request.resource.data.status == "expired"
+            )
+          )
+        )
+      )
+
+      ||
+
+      // USER
+      //
+      // Il cliente può solamente rispondere a una Request
+      // pendente.
+      //
+      // Le sole transizioni consentite sono:
+      //
+      // pendingCustomer
+      //   -> accepted
+      //   -> rejected
+      //
+      (
+        isUser()
+        && resource.data.customerId
+        == request.auth.uid
+
+        && request.resource.data.salonId
+        == resource.data.salonId
+
+        && request.resource.data.customerId
+        == resource.data.customerId
+
+        && request.resource.data.appointmentId
+        == resource.data.appointmentId
+
+        && request.resource.data.createdBy
+        == resource.data.createdBy
+
+        && request.resource.data.type
+        == resource.data.type
+
+        && request.resource.data.priority
+        == resource.data.priority
+
+        && request.resource.data.payload
+        == resource.data.payload
+
+        && request.resource.data.diff(resource.data)
+          .affectedKeys()
+          .hasOnly([
+          "status",
+          "updatedAt"
+        ])
+
+        && resource.data.status == "pendingCustomer"
+
+        && (
+          request.resource.data.status == "accepted"
+          ||
+          request.resource.data.status == "rejected"
+        )
+      );
+
+
+      // Le Request non vengono cancellate dal client.
+      allow delete: if false;
+
+
+      // =======================================================
+      // REQUEST TIMELINE
+      // =======================================================
+
+      match /timeline/{eventId} {
+
+        // Stessa visibilità della Request padre.
+        allow read: if
+        signedIn()
+        && (
+          (
+            isSalon()
+            &&
+            get(
+              /databases/$(database)/documents/appointment_requests/$(requestId)
+            ).data.salonId
+            == currentUser().data.salonId
+          )
+          ||
+          (
+            isUser()
+            &&
+            get(
+              /databases/$(database)/documents/appointment_requests/$(requestId)
+            ).data.customerId
+            == request.auth.uid
+          )
+        );
+
+
+        // Timeline APPEND ONLY.
+        //
+        // Una volta creato un evento:
+        //
+        // - non può essere modificato
+        // - non può essere cancellato
+        allow update, delete: if false;
+
+
+        // -----------------------------------------------------
+        // TIMELINE CREATE
+        // -----------------------------------------------------
+
+        // Salon / sistema:
+        // gli eventi possono essere aggiunti solamente alla
+        // Request appartenente al proprio Salon.
+        allow create: if
+        isSalon()
+        &&
+        get(
+          /databases/$(database)/documents/appointment_requests/$(requestId)
+        ).data.salonId
+        == currentUser().data.salonId
+
+        && request.resource.data.id == eventId
+        && request.resource.data.requestId == requestId;
+
+
+        // User:
+        // può aggiungere esclusivamente l'evento relativo alla
+        // propria risposta.
+        //
+        // La Request deve risultare nello stato finale corretto.
+        //
+        // getAfter() permette di verificare lo stato della Request
+        // dopo la transazione/batch ma prima del commit.
+        allow create: if
+        isUser()
+
+        && get(
+          /databases/$(database)/documents/appointment_requests/$(requestId)
+        ).data.customerId
+        == request.auth.uid
+
+        && request.resource.data.id == eventId
+        && request.resource.data.requestId == requestId
+
+        && (
+          (
+            request.resource.data.type == "accepted"
+            &&
+            request.resource.data.author == "customer"
+            &&
+            getAfter(
+              /databases/$(database)/documents/appointment_requests/$(requestId)
+            ).data.status == "accepted"
+          )
+          ||
+          (
+            request.resource.data.type == "rejected"
+            &&
+            request.resource.data.author == "customer"
+            &&
+            getAfter(
+              /databases/$(database)/documents/appointment_requests/$(requestId)
+            ).data.status == "rejected"
+          )
+        );
+      }
+    }
+
+
+    // =========================================================
+    // EMPLOYEE CALENDAR
+    // =========================================================
+
+    match /employee_calendar/{eventId} {
+
+      // Il calendario appartiene al Salon.
+      // Employee non è un account.
+      allow read: if
+      signedIn()
+      && (
+        (
+          isSalon()
+          && resource.data.salonId
+          == currentUser().data.salonId
+        )
+        ||
+        isUser()
+      );
+
+      allow create, update, delete: if
+      isSalon()
+      && request.resource.data.salonId
+      == currentUser().data.salonId;
+    }
+
+
+    // =========================================================
+    // DEFAULT DENY
+    // =========================================================
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
   }
 }
