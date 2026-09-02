@@ -10,14 +10,17 @@ import 'salon_opening_hours_section.dart';
 import 'salon_register_button.dart';
 
 class SalonRegisterForm extends ConsumerStatefulWidget {
-  const SalonRegisterForm({super.key});
+  const SalonRegisterForm({
+    super.key,
+  });
 
   @override
   ConsumerState<SalonRegisterForm> createState() =>
       _SalonRegisterFormState();
 }
 
-class _SalonRegisterFormState extends ConsumerState<SalonRegisterForm> {
+class _SalonRegisterFormState
+    extends ConsumerState<SalonRegisterForm> {
   final _formKey = GlobalKey<FormState>();
 
   final salonNameController = TextEditingController();
@@ -53,6 +56,7 @@ class _SalonRegisterFormState extends ConsumerState<SalonRegisterForm> {
     passwordController.dispose();
     confirmPasswordController.dispose();
     taxIdController.dispose();
+
     super.dispose();
   }
 
@@ -61,13 +65,21 @@ class _SalonRegisterFormState extends ConsumerState<SalonRegisterForm> {
       return;
     }
 
-    final controller = ref.read(salonRegisterControllerProvider);
+    final controller = ref.read(
+      salonRegisterControllerProvider,
+    );
+
+    if (controller.isLoading) {
+      return;
+    }
+
+    FocusScope.of(context).unfocus();
 
     final success = await controller.register(
       ownerName: ownerNameController.text.trim(),
       salonName: salonNameController.text.trim(),
       email: emailController.text.trim(),
-      password: passwordController.text.trim(),
+      password: passwordController.text,
       phone: phoneController.text.trim(),
       address: addressController.text.trim(),
       city: cityController.text.trim(),
@@ -76,7 +88,7 @@ class _SalonRegisterFormState extends ConsumerState<SalonRegisterForm> {
       taxId: taxIdController.text.trim(),
       openingHour: openingHour,
       closingHour: closingHour,
-      closedWeekdays: closedWeekdays,
+      closedWeekdays: List<int>.from(closedWeekdays),
     );
 
     if (!mounted) {
@@ -87,23 +99,29 @@ class _SalonRegisterFormState extends ConsumerState<SalonRegisterForm> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            controller.errorMessage ?? 'Errore registrazione salone',
+            controller.errorMessage ??
+                'Errore durante la registrazione del salone.',
           ),
         ),
       );
+
       return;
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Salone creato con successo'),
+        content: Text(
+          'Salone creato con successo.',
+        ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final controller = ref.watch(salonRegisterControllerProvider);
+    final controller = ref.watch(
+      salonRegisterControllerProvider,
+    );
 
     return Form(
       key: _formKey,
@@ -117,15 +135,21 @@ class _SalonRegisterFormState extends ConsumerState<SalonRegisterForm> {
             cityController: cityController,
             descriptionController: descriptionController,
           ),
-          const SizedBox(height: AppSpacing.xl),
+          const SizedBox(
+            height: AppSpacing.xl,
+          ),
           _buildTaxIdSection(),
-          const SizedBox(height: AppSpacing.xl),
+          const SizedBox(
+            height: AppSpacing.xl,
+          ),
           SalonAccountSection(
             emailController: emailController,
             passwordController: passwordController,
-            confirmPasswordController: confirmPasswordController,
+            confirmPasswordController:
+            confirmPasswordController,
             obscurePassword: obscurePassword,
-            obscureConfirmPassword: obscureConfirmPassword,
+            obscureConfirmPassword:
+            obscureConfirmPassword,
             onPasswordVisibilityChanged: () {
               setState(() {
                 obscurePassword = !obscurePassword;
@@ -133,11 +157,14 @@ class _SalonRegisterFormState extends ConsumerState<SalonRegisterForm> {
             },
             onConfirmPasswordVisibilityChanged: () {
               setState(() {
-                obscureConfirmPassword = !obscureConfirmPassword;
+                obscureConfirmPassword =
+                !obscureConfirmPassword;
               });
             },
           ),
-          const SizedBox(height: AppSpacing.xl),
+          const SizedBox(
+            height: AppSpacing.xl,
+          ),
           SalonOpeningHoursSection(
             openingHour: openingHour,
             closingHour: closingHour,
@@ -156,7 +183,9 @@ class _SalonRegisterFormState extends ConsumerState<SalonRegisterForm> {
               });
             },
           ),
-          const SizedBox(height: AppSpacing.xl),
+          const SizedBox(
+            height: AppSpacing.xl,
+          ),
           SalonClosedDaysSection(
             closedWeekdays: closedWeekdays,
             onChanged: (days) {
@@ -167,10 +196,14 @@ class _SalonRegisterFormState extends ConsumerState<SalonRegisterForm> {
               });
             },
           ),
-          const SizedBox(height: AppSpacing.xxl),
+          const SizedBox(
+            height: AppSpacing.xxl,
+          ),
           SalonRegisterButton(
             isLoading: controller.isLoading,
-            onPressed: controller.isLoading ? null : _register,
+            onPressed: controller.isLoading
+                ? null
+                : _register,
           ),
         ],
       ),
@@ -185,9 +218,13 @@ class _SalonRegisterFormState extends ConsumerState<SalonRegisterForm> {
       children: [
         Text(
           'Dati fiscali',
-          style: Theme.of(context).textTheme.titleMedium,
+          style: Theme.of(context)
+              .textTheme
+              .titleMedium,
         ),
-        const SizedBox(height: AppSpacing.md),
+        const SizedBox(
+          height: AppSpacing.md,
+        ),
         DropdownButtonFormField<String>(
           initialValue: taxIdType,
           decoration: const InputDecoration(
@@ -204,7 +241,9 @@ class _SalonRegisterFormState extends ConsumerState<SalonRegisterForm> {
               child: Text('Codice Fiscale'),
             ),
           ],
-          onChanged: (value) {
+          onChanged: controllerIsLoading
+              ? null
+              : (value) {
             if (value == null) {
               return;
             }
@@ -215,12 +254,16 @@ class _SalonRegisterFormState extends ConsumerState<SalonRegisterForm> {
             });
           },
         ),
-        const SizedBox(height: AppSpacing.md),
+        const SizedBox(
+          height: AppSpacing.md,
+        ),
         TextFormField(
           controller: taxIdController,
-          textCapitalization: TextCapitalization.characters,
+          textCapitalization:
+          TextCapitalization.characters,
           decoration: InputDecoration(
-            labelText: isVat ? 'Partita IVA' : 'Codice Fiscale',
+            labelText:
+            isVat ? 'Partita IVA' : 'Codice Fiscale',
             hintText: isVat
                 ? 'Inserisci la Partita IVA'
                 : 'Inserisci il Codice Fiscale',
@@ -240,5 +283,11 @@ class _SalonRegisterFormState extends ConsumerState<SalonRegisterForm> {
         ),
       ],
     );
+  }
+
+  bool get controllerIsLoading {
+    return ref.read(
+      salonRegisterControllerProvider,
+    ).isLoading;
   }
 }

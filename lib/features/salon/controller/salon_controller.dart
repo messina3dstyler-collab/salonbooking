@@ -23,4 +23,20 @@ class SalonController extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  Future<void> deleteSalon(String salonId) async {
+    isLoading = true;
+    notifyListeners();
+
+    try {
+      await _service.deleteSalon(salonId);
+
+      salons.removeWhere(
+            (salon) => salon.id == salonId,
+      );
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
+  }
 }

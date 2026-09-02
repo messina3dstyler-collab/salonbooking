@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -5,7 +7,6 @@ import 'package:intl/intl.dart';
 import '../../admin_providers.dart';
 import 'admin_agenda_header.dart';
 import 'admin_agenda_timeline.dart';
-import 'dart:async';
 import 'admin_appointment_sheet.dart';
 
 class AdminAgendaView extends ConsumerStatefulWidget {
@@ -50,6 +51,7 @@ class _AdminAgendaViewState
   @override
   void initState() {
     super.initState();
+
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1100),
@@ -100,7 +102,9 @@ class _AdminAgendaViewState
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       // aspetta che la timeline sia realmente costruita
-      await Future.delayed(const Duration(milliseconds: 80));
+      await Future.delayed(
+        const Duration(milliseconds: 80),
+      );
 
       if (!_verticalController.hasClients) return;
 
@@ -154,6 +158,7 @@ class _AdminAgendaViewState
 
     _scrollToCurrentTime();
   }
+
   void _showAppointmentSheet(
       BuildContext context,
       dynamic item,
@@ -183,10 +188,18 @@ class _AdminAgendaViewState
           // TODO check-in cliente
         },
 
-        onDelete: () {
+        onDelete: () async {
           Navigator.pop(context);
 
-          // TODO elimina appuntamento
+          if (!item.isAppointment) return;
+
+          await ref
+              .read(
+            adminAppointmentsControllerProvider,
+          )
+              .deleteAppointment(
+            appointmentId: item.id,
+          );
         },
       ),
     );
@@ -218,17 +231,19 @@ class _AdminAgendaViewState
 
     final employees =
         employeeController.employees;
+
     final now = DateTime.now();
 
     final activeEmployees = <String, bool>{};
 
     for (final employee in employees) {
-      activeEmployees[employee.id] = agendaController.items.any(
-            (item) =>
-        item.employeeName == employee.name &&
-            now.isAfter(item.start) &&
-            now.isBefore(item.end),
-      );
+      activeEmployees[employee.id] =
+          agendaController.items.any(
+                (item) =>
+            item.employeeName == employee.name &&
+                now.isAfter(item.start) &&
+                now.isBefore(item.end),
+          );
     }
 
     return Column(
@@ -265,8 +280,9 @@ class _AdminAgendaViewState
                   const Duration(days: 1),
                 ),
               ),
-              icon:
-              const Icon(Icons.chevron_left),
+              icon: const Icon(
+                Icons.chevron_left,
+              ),
             ),
             IconButton(
               onPressed: () => _changeDay(
@@ -274,8 +290,9 @@ class _AdminAgendaViewState
                   const Duration(days: 1),
                 ),
               ),
-              icon:
-              const Icon(Icons.chevron_right),
+              icon: const Icon(
+                Icons.chevron_right,
+              ),
             ),
           ],
         ),
@@ -325,9 +342,12 @@ class _AdminAgendaViewState
                     children: [
                       AdminAgendaHeader(
                         employees: employees,
-                        items: agendaController.items,
-                        horizontalController: _horizontalController,
-                        activeEmployees: activeEmployees,
+                        items:
+                        agendaController.items,
+                        horizontalController:
+                        _horizontalController,
+                        activeEmployees:
+                        activeEmployees,
                       ),
                       Container(
                         height: 2,
@@ -343,16 +363,25 @@ class _AdminAgendaViewState
                 Expanded(
                   child:
                   AdminAgendaTimeline(
-                    verticalController: _verticalController,
-                    horizontalController: _horizontalController,
+                    verticalController:
+                    _verticalController,
+                    horizontalController:
+                    _horizontalController,
                     employees: employees,
-                    items: agendaController.items,
-                    activeEmployees: activeEmployees,
-                    pulseAnimation: pulseAnimation,
-                    onAppointmentTap: (item) {
-                      _showAppointmentSheet(context, item);
+                    items:
+                    agendaController.items,
+                    activeEmployees:
+                    activeEmployees,
+                    pulseAnimation:
+                    pulseAnimation,
+                    onAppointmentTap:
+                        (item) {
+                      _showAppointmentSheet(
+                        context,
+                        item,
+                      );
                     },
-                  )
+                  ),
                 ),
               ],
             ),

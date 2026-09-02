@@ -13,4 +13,8 @@ class SalonService {
   Future<SalonModel?> getSalon(String id) {
     return _repository.getSalon(id);
   }
+
+  Future<void> deleteSalon(String salonId) {
+    return _repository.deleteSalon(salonId);
+  }
 }
