@@ -29,9 +29,12 @@ class _SalonRegisterFormState extends ConsumerState<SalonRegisterForm> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   final confirmPasswordController = TextEditingController();
+  final taxIdController = TextEditingController();
 
   bool obscurePassword = true;
   bool obscureConfirmPassword = true;
+
+  String taxIdType = 'vat';
 
   int openingHour = 9;
   int closingHour = 19;
@@ -49,6 +52,7 @@ class _SalonRegisterFormState extends ConsumerState<SalonRegisterForm> {
     emailController.dispose();
     passwordController.dispose();
     confirmPasswordController.dispose();
+    taxIdController.dispose();
     super.dispose();
   }
 
@@ -68,6 +72,8 @@ class _SalonRegisterFormState extends ConsumerState<SalonRegisterForm> {
       address: addressController.text.trim(),
       city: cityController.text.trim(),
       description: descriptionController.text.trim(),
+      taxIdType: taxIdType,
+      taxId: taxIdController.text.trim(),
       openingHour: openingHour,
       closingHour: closingHour,
       closedWeekdays: closedWeekdays,
@@ -112,6 +118,8 @@ class _SalonRegisterFormState extends ConsumerState<SalonRegisterForm> {
             descriptionController: descriptionController,
           ),
           const SizedBox(height: AppSpacing.xl),
+          _buildTaxIdSection(),
+          const SizedBox(height: AppSpacing.xl),
           SalonAccountSection(
             emailController: emailController,
             passwordController: passwordController,
@@ -136,6 +144,7 @@ class _SalonRegisterFormState extends ConsumerState<SalonRegisterForm> {
             onOpeningChanged: (value) {
               setState(() {
                 openingHour = value;
+
                 if (closingHour <= value) {
                   closingHour = value + 1;
                 }
@@ -165,6 +174,71 @@ class _SalonRegisterFormState extends ConsumerState<SalonRegisterForm> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildTaxIdSection() {
+    final isVat = taxIdType == 'vat';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Dati fiscali',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        const SizedBox(height: AppSpacing.md),
+        DropdownButtonFormField<String>(
+          initialValue: taxIdType,
+          decoration: const InputDecoration(
+            labelText: 'Tipo identificativo fiscale',
+            border: OutlineInputBorder(),
+          ),
+          items: const [
+            DropdownMenuItem(
+              value: 'vat',
+              child: Text('Partita IVA'),
+            ),
+            DropdownMenuItem(
+              value: 'fiscalCode',
+              child: Text('Codice Fiscale'),
+            ),
+          ],
+          onChanged: (value) {
+            if (value == null) {
+              return;
+            }
+
+            setState(() {
+              taxIdType = value;
+              taxIdController.clear();
+            });
+          },
+        ),
+        const SizedBox(height: AppSpacing.md),
+        TextFormField(
+          controller: taxIdController,
+          textCapitalization: TextCapitalization.characters,
+          decoration: InputDecoration(
+            labelText: isVat ? 'Partita IVA' : 'Codice Fiscale',
+            hintText: isVat
+                ? 'Inserisci la Partita IVA'
+                : 'Inserisci il Codice Fiscale',
+            border: const OutlineInputBorder(),
+          ),
+          validator: (value) {
+            final text = value?.trim() ?? '';
+
+            if (text.isEmpty) {
+              return isVat
+                  ? 'La Partita IVA è obbligatoria'
+                  : 'Il Codice Fiscale è obbligatorio';
+            }
+
+            return null;
+          },
+        ),
+      ],
     );
   }
 }

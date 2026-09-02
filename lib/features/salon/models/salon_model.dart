@@ -16,6 +16,8 @@ class SalonModel {
     required this.closedWeekdays,
     required this.closedDates,
     required this.active,
+    required this.taxIdType,
+    required this.taxId,
   });
 
   final String id;
@@ -36,100 +38,66 @@ class SalonModel {
 
   final bool active;
 
+  /// Tipo di identificativo fiscale dell'attività.
+  ///
+  /// Valori previsti:
+  /// - vat
+  /// - fiscalCode
+  final String taxIdType;
+
+  /// Partita IVA oppure Codice Fiscale dell'attività.
+  final String taxId;
 
   factory SalonModel.fromMap(
       String id,
       Map<String, dynamic> json,
       ) {
-
     return SalonModel(
-
       id: id,
-
       name: json['name'] ?? '',
-
       address: json['address'] ?? '',
-
       city: json['city'] ?? '',
-
       imageUrl: json['imageUrl'] ?? '',
-
-      rating:
-      (json['rating'] ?? 0).toDouble(),
-
-      reviewCount:
-      json['reviewCount'] ?? 0,
-
-      phone:
-      json['phone'] ?? '',
-
-      description:
-      json['description'] ?? '',
-
-
-      openingHour:
-      json['openingHour'] ?? 9,
-
-
-      closingHour:
-      json['closingHour'] ?? 19,
-
-
-      active:
-      json['active'] ?? true,
-
-
-      closedWeekdays:
-      json['closedWeekdays'] is List
+      rating: (json['rating'] ?? 0).toDouble(),
+      reviewCount: json['reviewCount'] ?? 0,
+      phone: json['phone'] ?? '',
+      description: json['description'] ?? '',
+      openingHour: json['openingHour'] ?? 9,
+      closingHour: json['closingHour'] ?? 19,
+      active: json['active'] ?? true,
+      closedWeekdays: json['closedWeekdays'] is List
           ? List<int>.from(json['closedWeekdays'])
           : [],
-
-
-      closedDates:
-      json['closedDates'] is List
+      closedDates: json['closedDates'] is List
           ? (json['closedDates'] as List)
           .whereType<Timestamp>()
           .map((e) => e.toDate())
           .toList()
           : [],
+      taxIdType: json['taxIdType'] ?? '',
+      taxId: json['taxId'] ?? '',
     );
   }
 
-
-
-  Map<String,dynamic> toMap(){
-
+  Map<String, dynamic> toMap() {
     return {
-
-      'name':name,
-
-      'address':address,
-
-      'city':city,
-
-      'imageUrl':imageUrl,
-
-      'rating':rating,
-
-      'reviewCount':reviewCount,
-
-      'phone':phone,
-
-      'description':description,
-
-      'openingHour':openingHour,
-
-      'closingHour':closingHour,
-
-      'active':active,
-
-      'closedWeekdays':closedWeekdays,
-
-      'closedDates':
-      closedDates
-          .map((e)=>Timestamp.fromDate(e))
+      'name': name,
+      'address': address,
+      'city': city,
+      'imageUrl': imageUrl,
+      'rating': rating,
+      'reviewCount': reviewCount,
+      'phone': phone,
+      'description': description,
+      'openingHour': openingHour,
+      'closingHour': closingHour,
+      'active': active,
+      'closedWeekdays': closedWeekdays,
+      'closedDates': closedDates
+          .map((e) => Timestamp.fromDate(e))
           .toList(),
-
+      'taxIdType': taxIdType,
+      'taxId': taxId,
     };
   }
 }

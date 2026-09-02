@@ -141,7 +141,9 @@ service cloud.firestore {
         "closingHour",
         "closedWeekdays",
         "closedDates",
-        "active"
+        "active",
+        "taxIdType",
+        "taxId"
       ]);
 
       // Un Salon può eliminare solamente il proprio documento.
