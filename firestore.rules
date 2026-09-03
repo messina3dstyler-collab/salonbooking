@@ -76,10 +76,6 @@ service cloud.firestore {
       // READ
       // -------------------------------------------------------
 
-      // Un User può leggere il proprio profilo.
-      //
-      // Un Salon può leggere i profili necessari alla propria
-      // gestione.
       allow read: if
       isOwnUser(userId)
       || isSalon();
@@ -88,15 +84,6 @@ service cloud.firestore {
       // -------------------------------------------------------
       // CREATE
       // -------------------------------------------------------
-
-      // Il documento users/{uid} può essere creato solamente
-      // dall'utente autenticato corrispondente.
-      //
-      // I soli ruoli applicativi ammessi sono:
-      // - admin
-      // - customer
-      //
-      // Il ruolo non può quindi essere arbitrario.
 
       allow create: if
       isOwnUser(userId)
@@ -111,14 +98,6 @@ service cloud.firestore {
       // UPDATE
       // -------------------------------------------------------
 
-      // L'utente può modificare solamente i propri dati
-      // personali.
-      //
-      // NON può modificare:
-      // - role
-      // - salonId
-      // - altri campi strutturali
-      //
       allow update: if
       isOwnUser(userId)
       && request.resource.data.role == resource.data.role
@@ -137,7 +116,6 @@ service cloud.firestore {
       // DELETE
       // -------------------------------------------------------
 
-      // I profili non vengono eliminati dal client.
       allow delete: if false;
     }
 
@@ -148,7 +126,6 @@ service cloud.firestore {
 
     match /salons/{salonId} {
 
-      // I dati del salone sono necessari anche al cliente.
       allow read: if signedIn();
 
 
@@ -156,15 +133,6 @@ service cloud.firestore {
       // CREATE
       // -------------------------------------------------------
 
-      // Durante la registrazione il Salon viene creato prima
-      // del documento users/{uid}.
-      //
-      // Per questo NON possiamo utilizzare ownsSalon() qui:
-      // il profilo users/{uid} potrebbe non esistere ancora.
-      //
-      // Il documento deve comunque appartenere allo stesso
-      // account Firebase che lo sta creando.
-      //
       allow create: if
       signedIn()
       && request.auth.uid == salonId;
@@ -173,10 +141,6 @@ service cloud.firestore {
       // -------------------------------------------------------
       // UPDATE
       // -------------------------------------------------------
-
-      // Il Salon può modificare solamente il proprio documento.
-      //
-      // I campi ammessi corrispondono al SalonModel attuale.
 
       allow update: if
       ownsSalon(salonId)
@@ -205,21 +169,12 @@ service cloud.firestore {
       // DELETE
       // -------------------------------------------------------
 
-      // Un Salon può eliminare solamente il proprio documento.
       allow delete: if ownsSalon(salonId);
 
 
       // =======================================================
       // EMPLOYEES
       // =======================================================
-
-      // Employee NON è un account Firebase.
-      //
-      // È semplicemente una persona appartenente al team
-      // del Salon.
-      //
-      // Il cliente può leggerli perché sono necessari
-      // alla prenotazione.
 
       match /employees/{employeeId} {
 
@@ -256,9 +211,6 @@ service cloud.firestore {
         // CREATE
         // -----------------------------------------------------
 
-        // Solo il cliente autenticato può creare una recensione
-        // per sé stesso e per il salone indicato.
-
         allow create: if
         isUser()
         && request.resource.data.userId == request.auth.uid
@@ -268,9 +220,6 @@ service cloud.firestore {
         // -----------------------------------------------------
         // UPDATE / DELETE
         // -----------------------------------------------------
-
-        // Il Salon può gestire solamente le recensioni
-        // del proprio salone.
 
         allow update, delete: if
         ownsSalon(salonId);
@@ -303,7 +252,6 @@ service cloud.firestore {
         // CREATE
         // -----------------------------------------------------
 
-        // Gli appuntamenti nested sono creati dal Salon.
         allow create: if
         ownsSalon(salonId);
 
@@ -328,12 +276,6 @@ service cloud.firestore {
       // READ
       // -------------------------------------------------------
 
-      // User:
-      // solamente i propri appuntamenti.
-      //
-      // Salon:
-      // solamente gli appuntamenti del proprio salone.
-
       allow read: if
       signedIn()
       && (
@@ -352,12 +294,6 @@ service cloud.firestore {
       // -------------------------------------------------------
       // CREATE
       // -------------------------------------------------------
-
-      // User:
-      // può creare un appuntamento per sé stesso.
-      //
-      // Salon:
-      // può creare appuntamenti appartenenti al proprio salone.
 
       allow create: if
       signedIn()
@@ -378,22 +314,317 @@ service cloud.firestore {
       // -------------------------------------------------------
       // UPDATE
       // -------------------------------------------------------
-
-      // Il Salon può modificare solamente appuntamenti
-      // appartenenti al proprio salone.
+      //
+      // Il Salon può modificare gli appuntamenti del proprio
+      // salone.
+      //
+      // Il customer invece può modificare un Appointment
+      // solamente come parte dell'accettazione di una Request.
+      //
+      // =======================================================
 
       allow update: if
-      isSalon()
-      && resource.data.salonId
-      == currentUser().data.salonId;
+
+      // =======================================================
+      // SALON
+      // =======================================================
+
+      (
+        isSalon()
+        && resource.data.salonId
+        == currentUser().data.salonId
+      )
+
+      ||
+
+      // =======================================================
+      // CUSTOMER - ACCEPT REQUEST
+      // =======================================================
+      //
+      // Il customer NON può modificare liberamente
+      // l'Appointment.
+      //
+      // L'update deve essere parte della stessa transaction
+      // che porta la Request:
+      //
+      // pendingCustomer -> accepted
+      //
+      // e collega:
+      //
+      // Appointment.acceptedRequestId == Request.id
+      //
+      // =======================================================
+
+      (
+        isUser()
+
+        // -----------------------------------------------------
+        // Appointment ownership
+        // -----------------------------------------------------
+
+        && resource.data.userId == request.auth.uid
+
+        // -----------------------------------------------------
+        // Appointment identity immutable
+        // -----------------------------------------------------
+
+        && request.resource.data.userId
+        == resource.data.userId
+
+        && request.resource.data.salonId
+        == resource.data.salonId
+
+        // -----------------------------------------------------
+        // acceptedRequestId
+        //
+        // Deve essere valorizzato con una Request reale.
+        // -----------------------------------------------------
+
+        && request.resource.data.acceptedRequestId is string
+
+        && request.resource.data.acceptedRequestId != ""
+
+        // -----------------------------------------------------
+        // La Request collegata deve essere la Request che
+        // viene accettata nella stessa operazione atomica.
+        // -----------------------------------------------------
+
+        && getAfter(
+          /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
+        ).data.status == "accepted"
+
+        // -----------------------------------------------------
+        // Request -> customer
+        // -----------------------------------------------------
+
+        && getAfter(
+          /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
+        ).data.customerId == request.auth.uid
+
+        // -----------------------------------------------------
+        // Request -> Appointment
+        // -----------------------------------------------------
+
+        && getAfter(
+          /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
+        ).data.appointmentId == appointmentId
+
+        // -----------------------------------------------------
+        // Request -> Salon
+        // -----------------------------------------------------
+
+        && getAfter(
+          /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
+        ).data.salonId == resource.data.salonId
+
+        // -----------------------------------------------------
+        // acceptedRequestId deve realmente cambiare.
+        // -----------------------------------------------------
+
+        && request.resource.data.acceptedRequestId
+        != resource.data.acceptedRequestId
+
+        // -----------------------------------------------------
+        // Request type -> Appointment fields
+        // -----------------------------------------------------
+
+        && (
+          // ---------------------------------------------------
+          // RESCHEDULE
+          // ---------------------------------------------------
+
+          (
+            getAfter(
+              /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
+            ).data.type == "reschedule"
+
+            && getAfter(
+              /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
+            ).data.payload.newStart is string
+
+            && getAfter(
+              /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
+            ).data.payload.newStart != ""
+
+            && request.resource.data.diff(resource.data)
+              .affectedKeys()
+              .hasOnly([
+              "date",
+              "acceptedRequestId"
+            ])
+
+            // La data deve effettivamente cambiare.
+            //
+            // Firestore Rules non possono eseguire DateTime.parse()
+            // sul valore stringa della payload.
+            //
+            // Per questo verifichiamo che:
+            // - il payload contenga newStart;
+            // - date sia tra i campi modificati;
+            // - acceptedRequestId sia quello della Request.
+            //
+            // La conversione stringa -> Timestamp viene eseguita
+            // dal Dart service prima della write.
+
+            && request.resource.data.date
+            != resource.data.date
+          )
+
+          ||
+
+          // ---------------------------------------------------
+          // CHANGE EMPLOYEE
+          // ---------------------------------------------------
+
+          (
+            getAfter(
+              /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
+            ).data.type == "changeEmployee"
+
+            && (
+              (
+                getAfter(
+                  /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
+                ).data.payload.newEmployeeId is string
+
+                && getAfter(
+                  /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
+                ).data.payload.newEmployeeId != ""
+
+                && request.resource.data.employeeId
+                ==
+                getAfter(
+                  /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
+                ).data.payload.newEmployeeId
+              )
+
+              ||
+
+              (
+                getAfter(
+                  /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
+                ).data.payload.newEmployee is string
+
+                && getAfter(
+                  /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
+                ).data.payload.newEmployee != ""
+
+                && request.resource.data.employeeId
+                ==
+                getAfter(
+                  /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
+                ).data.payload.newEmployee
+              )
+            )
+
+            && request.resource.data.diff(resource.data)
+              .affectedKeys()
+              .hasOnly([
+              "employeeId",
+              "acceptedRequestId"
+            ])
+          )
+
+          ||
+
+          // ---------------------------------------------------
+          // CHANGE SERVICES
+          // ---------------------------------------------------
+
+          (
+            getAfter(
+              /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
+            ).data.type == "changeServices"
+
+            && (
+              (
+                getAfter(
+                  /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
+                ).data.payload.newServiceId is string
+
+                && getAfter(
+                  /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
+                ).data.payload.newServiceId != ""
+
+                && request.resource.data.serviceId
+                ==
+                getAfter(
+                  /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
+                ).data.payload.newServiceId
+              )
+
+              ||
+
+              (
+                getAfter(
+                  /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
+                ).data.payload.serviceId is string
+
+                && getAfter(
+                  /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
+                ).data.payload.serviceId != ""
+
+                && request.resource.data.serviceId
+                ==
+                getAfter(
+                  /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
+                ).data.payload.serviceId
+              )
+            )
+
+            && request.resource.data.diff(resource.data)
+              .affectedKeys()
+              .hasOnly([
+              "serviceId",
+              "acceptedRequestId"
+            ])
+          )
+
+          ||
+
+          // ---------------------------------------------------
+          // CANCEL APPOINTMENT
+          // ---------------------------------------------------
+
+          (
+            getAfter(
+              /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
+            ).data.type == "cancelAppointment"
+
+            && request.resource.data.status == "Annullata"
+
+            && request.resource.data.diff(resource.data)
+              .affectedKeys()
+              .hasOnly([
+              "status",
+              "acceptedRequestId"
+            ])
+          )
+
+          ||
+
+          // ---------------------------------------------------
+          // CUSTOM
+          // ---------------------------------------------------
+
+          (
+            getAfter(
+              /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
+            ).data.type == "custom"
+
+            && request.resource.data.diff(resource.data)
+              .affectedKeys()
+              .hasOnly([
+              "acceptedRequestId"
+            ])
+          )
+        )
+      );
 
 
       // -------------------------------------------------------
       // DELETE
       // -------------------------------------------------------
-
-      // Il Salon può eliminare solamente appuntamenti
-      // appartenenti al proprio salone.
 
       allow delete: if
       isSalon()
@@ -411,12 +642,6 @@ service cloud.firestore {
       // -------------------------------------------------------
       // READ
       // -------------------------------------------------------
-
-      // Salon:
-      // solamente Request appartenenti al proprio salone.
-      //
-      // User:
-      // solamente Request di cui è customerId.
 
       allow read: if
       signedIn()
@@ -439,12 +664,6 @@ service cloud.firestore {
       // CREATE
       // -------------------------------------------------------
 
-      // Le Request vengono create dal Salon.
-      //
-      // Employee NON può crearle perché non è autenticato.
-      //
-      // Il customer non può inventarsi una Request.
-
       allow create: if
       isSalon()
       && request.resource.data.id == requestId
@@ -465,27 +684,15 @@ service cloud.firestore {
       // UPDATE
       // -------------------------------------------------------
 
-      // SALON
-      //
-      // Il Salon può modificare solamente:
-      // - status
-      // - updatedAt
-      //
-      // Tutti gli altri dati identificativi della Request
-      // rimangono immutabili.
-      //
-      // Transizioni consentite:
-      //
-      // draft
-      //   -> pendingCustomer
-      //
-      // pendingCustomer
-      //   -> cancelled
-      //   -> expired
-
       allow update: if
+
+      // =======================================================
+      // SALON
+      // =======================================================
+
       (
         isSalon()
+
         && resource.data.salonId
         == currentUser().data.salonId
 
@@ -528,8 +735,7 @@ service cloud.firestore {
             resource.data.status == "pendingCustomer"
             && (
               request.resource.data.status == "cancelled"
-              ||
-              request.resource.data.status == "expired"
+              || request.resource.data.status == "expired"
             )
           )
         )
@@ -537,19 +743,25 @@ service cloud.firestore {
 
       ||
 
-      // USER
+      // =======================================================
+      // CUSTOMER
+      // =======================================================
       //
-      // Il cliente può solamente rispondere a una Request
-      // pendente.
+      // Il customer può solamente:
       //
-      // Transizioni consentite:
+      // pendingCustomer -> accepted
+      // pendingCustomer -> rejected
       //
-      // pendingCustomer
-      //   -> accepted
-      //   -> rejected
+      // Per accepted:
+      //
+      // la stessa transaction deve modificare anche
+      // l'Appointment.
+      //
+      // =======================================================
 
       (
         isUser()
+
         && resource.data.customerId
         == request.auth.uid
 
@@ -584,9 +796,161 @@ service cloud.firestore {
         && resource.data.status == "pendingCustomer"
 
         && (
-          request.resource.data.status == "accepted"
+          // ---------------------------------------------------
+          // REJECTED
+          // ---------------------------------------------------
+
+          (
+            request.resource.data.status == "rejected"
+          )
+
           ||
-          request.resource.data.status == "rejected"
+
+          // ---------------------------------------------------
+          // ACCEPTED
+          // ---------------------------------------------------
+
+          (
+            request.resource.data.status == "accepted"
+
+            // -------------------------------------------------
+            // Appointment must be updated in the same
+            // atomic operation.
+            // -------------------------------------------------
+
+            && getAfter(
+              /databases/$(database)/documents/appointments/$(resource.data.appointmentId)
+            ).data.userId == request.auth.uid
+
+            && getAfter(
+              /databases/$(database)/documents/appointments/$(resource.data.appointmentId)
+            ).data.acceptedRequestId == requestId
+
+            && getAfter(
+              /databases/$(database)/documents/appointments/$(resource.data.appointmentId)
+            ).data.salonId == resource.data.salonId
+
+            // -------------------------------------------------
+            // Appointment update must match Request type.
+            // -------------------------------------------------
+
+            && (
+              // -----------------------------------------------
+              // RESCHEDULE
+              // -----------------------------------------------
+
+              (
+                resource.data.type == "reschedule"
+
+                && resource.data.payload.newStart is string
+
+                && resource.data.payload.newStart != ""
+
+                && getAfter(
+                  /databases/$(database)/documents/appointments/$(resource.data.appointmentId)
+                ).data.acceptedRequestId == requestId
+
+                && getAfter(
+                  /databases/$(database)/documents/appointments/$(resource.data.appointmentId)
+                ).data.date
+                != get(
+                  /databases/$(database)/documents/appointments/$(resource.data.appointmentId)
+                ).data.date
+              )
+
+              ||
+
+              // -----------------------------------------------
+              // CHANGE EMPLOYEE
+              // -----------------------------------------------
+
+              (
+                resource.data.type == "changeEmployee"
+
+                && (
+                  (
+                    resource.data.payload.newEmployeeId is string
+                    && resource.data.payload.newEmployeeId != ""
+                    && getAfter(
+                      /databases/$(database)/documents/appointments/$(resource.data.appointmentId)
+                    ).data.employeeId
+                    == resource.data.payload.newEmployeeId
+                  )
+
+                  ||
+
+                  (
+                    resource.data.payload.newEmployee is string
+                    && resource.data.payload.newEmployee != ""
+                    && getAfter(
+                      /databases/$(database)/documents/appointments/$(resource.data.appointmentId)
+                    ).data.employeeId
+                    == resource.data.payload.newEmployee
+                  )
+                )
+              )
+
+              ||
+
+              // -----------------------------------------------
+              // CHANGE SERVICES
+              // -----------------------------------------------
+
+              (
+                resource.data.type == "changeServices"
+
+                && (
+                  (
+                    resource.data.payload.newServiceId is string
+                    && resource.data.payload.newServiceId != ""
+                    && getAfter(
+                      /databases/$(database)/documents/appointments/$(resource.data.appointmentId)
+                    ).data.serviceId
+                    == resource.data.payload.newServiceId
+                  )
+
+                  ||
+
+                  (
+                    resource.data.payload.serviceId is string
+                    && resource.data.payload.serviceId != ""
+                    && getAfter(
+                      /databases/$(database)/documents/appointments/$(resource.data.appointmentId)
+                    ).data.serviceId
+                    == resource.data.payload.serviceId
+                  )
+                )
+              )
+
+              ||
+
+              // -----------------------------------------------
+              // CANCEL APPOINTMENT
+              // -----------------------------------------------
+
+              (
+                resource.data.type == "cancelAppointment"
+
+                && getAfter(
+                  /databases/$(database)/documents/appointments/$(resource.data.appointmentId)
+                ).data.status == "Annullata"
+              )
+
+              ||
+
+              // -----------------------------------------------
+              // CUSTOM
+              // -----------------------------------------------
+
+              (
+                resource.data.type == "custom"
+
+                && getAfter(
+                  /databases/$(database)/documents/appointments/$(resource.data.appointmentId)
+                ).data.acceptedRequestId == requestId
+              )
+            )
+          )
         )
       );
 
@@ -595,7 +959,6 @@ service cloud.firestore {
       // DELETE
       // -------------------------------------------------------
 
-      // Le Request non vengono cancellate dal client.
       allow delete: if false;
 
 
@@ -608,8 +971,6 @@ service cloud.firestore {
         // -----------------------------------------------------
         // READ
         // -----------------------------------------------------
-
-        // Stessa visibilità della Request padre.
 
         allow read: if
         signedIn()
@@ -638,21 +999,12 @@ service cloud.firestore {
         // UPDATE / DELETE
         // -----------------------------------------------------
 
-        // Timeline APPEND ONLY.
-        //
-        // Una volta creato un evento:
-        // - non può essere modificato
-        // - non può essere cancellato
-
         allow update, delete: if false;
 
 
         // -----------------------------------------------------
         // CREATE - SALON
         // -----------------------------------------------------
-
-        // Gli eventi possono essere aggiunti solamente alla
-        // Request appartenente al proprio Salon.
 
         allow create: if
         isSalon()
@@ -669,12 +1021,11 @@ service cloud.firestore {
         // -----------------------------------------------------
         // CREATE - USER
         // -----------------------------------------------------
-
-        // Il cliente può aggiungere esclusivamente l'evento
-        // relativo alla propria risposta.
         //
-        // getAfter() verifica lo stato della Request
-        // dopo la transazione/batch ma prima del commit.
+        // Il customer può creare eventi solamente nella stessa
+        // transaction in cui risponde alla Request.
+        //
+        // -----------------------------------------------------
 
         allow create: if
         isUser()
@@ -688,24 +1039,68 @@ service cloud.firestore {
         && request.resource.data.requestId == requestId
 
         && (
+          // ---------------------------------------------------
+          // ACCEPTED
+          // ---------------------------------------------------
+
           (
             request.resource.data.type == "accepted"
-            &&
-            request.resource.data.author == "customer"
-            &&
-            getAfter(
+
+            && request.resource.data.author == "customer"
+
+            && getAfter(
               /databases/$(database)/documents/appointment_requests/$(requestId)
             ).data.status == "accepted"
+
+            && getAfter(
+              /databases/$(database)/documents/appointments/$(getAfter(
+                /databases/$(database)/documents/appointment_requests/$(requestId)
+              ).data.appointmentId)
+            ).data.acceptedRequestId == requestId
           )
+
           ||
+
+          // ---------------------------------------------------
+          // REJECTED
+          // ---------------------------------------------------
+
           (
             request.resource.data.type == "rejected"
-            &&
-            request.resource.data.author == "customer"
-            &&
-            getAfter(
+
+            && request.resource.data.author == "customer"
+
+            && getAfter(
               /databases/$(database)/documents/appointment_requests/$(requestId)
             ).data.status == "rejected"
+          )
+
+          ||
+
+          // ---------------------------------------------------
+          // APPOINTMENT UPDATED
+          // ---------------------------------------------------
+          //
+          // Questo evento viene creato da AcceptRequestOperation.
+          //
+          // Il suo author è "system".
+          //
+          // ---------------------------------------------------
+
+          (
+            request.resource.data.type == "appointmentUpdated"
+
+            && request.resource.data.author == "system"
+
+            && getAfter(
+              /databases/$(database)/documents/appointment_requests/$(requestId)
+            ).data.status == "accepted"
+
+            && getAfter(
+              /databases/$(database)/documents/appointments/$(getAfter(
+                /databases/$(database)/documents/appointment_requests/$(requestId)
+              ).data.appointmentId)
+            ).data.acceptedRequestId == requestId
           )
         );
       }
@@ -721,13 +1116,6 @@ service cloud.firestore {
       // -------------------------------------------------------
       // READ
       // -------------------------------------------------------
-
-      // Il calendario appartiene al Salon.
-      //
-      // Employee non è un account.
-      //
-      // Il cliente può leggere il calendario perché necessario
-      // al flusso di prenotazione.
 
       allow read: if
       signedIn()
@@ -767,10 +1155,6 @@ service cloud.firestore {
       // -------------------------------------------------------
       // DELETE
       // -------------------------------------------------------
-
-      // IMPORTANTE:
-      // durante delete request.resource non esiste.
-      // Bisogna quindi controllare resource.
 
       allow delete: if
       isSalon()

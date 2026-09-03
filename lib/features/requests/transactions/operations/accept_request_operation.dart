@@ -12,10 +12,124 @@ class AcceptRequestOperation extends RequestTransactionOperation {
       AppointmentRequest request,
       ) async {
     //--------------------------------------------------
+    // REQUEST STATE
+    //--------------------------------------------------
+
+    if (request.status !=
+        AppointmentRequestStatus.pendingCustomer) {
+      throw StateError(
+        "La Request '${request.id}' non è più pendente.",
+      );
+    }
+
+    if (request.id.trim().isEmpty) {
+      throw StateError(
+        "La Request non contiene un id valido.",
+      );
+    }
+
+    if (request.appointmentId.trim().isEmpty) {
+      throw StateError(
+        "La Request '${request.id}' non contiene appointmentId.",
+      );
+    }
+
+    if (request.customerId.trim().isEmpty) {
+      throw StateError(
+        "La Request '${request.id}' non contiene customerId.",
+      );
+    }
+
+    if (request.salonId.trim().isEmpty) {
+      throw StateError(
+        "La Request '${request.id}' non contiene salonId.",
+      );
+    }
+
+    //--------------------------------------------------
+    // READ APPOINTMENT
+    //
+    // IMPORTANTE:
+    // tutte le letture vengono effettuate prima
+    // delle scritture della transaction.
+    //--------------------------------------------------
+
+    final appointmentSnapshot =
+    await loadAppointmentDocument(
+      request.appointmentId,
+    );
+
+    if (!appointmentSnapshot.exists ||
+        appointmentSnapshot.data() == null) {
+      throw StateError(
+        "L'appuntamento '${request.appointmentId}' "
+            "non esiste.",
+      );
+    }
+
+    final appointment =
+    appointmentSnapshot.data()!;
+
+    //--------------------------------------------------
+    // REQUEST -> APPOINTMENT CONSISTENCY
+    //--------------------------------------------------
+
+    final appointmentUserId =
+        appointment['userId']?.toString() ?? '';
+
+    final appointmentSalonId =
+        appointment['salonId']?.toString() ?? '';
+
+    if (appointmentUserId != request.customerId) {
+      throw StateError(
+        "La Request '${request.id}' non appartiene "
+            "al customer dell'appuntamento.",
+      );
+    }
+
+    if (appointmentSalonId != request.salonId) {
+      throw StateError(
+        "La Request '${request.id}' e l'appuntamento "
+            "appartengono a saloni differenti.",
+      );
+    }
+
+    //--------------------------------------------------
+    // APPOINTMENT ID CONSISTENCY
+    //--------------------------------------------------
+
+    if (request.appointmentId !=
+        appointmentSnapshot.id) {
+      throw StateError(
+        "appointmentId non coerente con il documento "
+            "Appointment.",
+      );
+    }
+
+    //--------------------------------------------------
+    // PREVENT DOUBLE ACCEPTANCE
+    //--------------------------------------------------
+
+    final existingAcceptedRequestId =
+    appointment['acceptedRequestId']
+        ?.toString()
+        .trim();
+
+    if (existingAcceptedRequestId != null &&
+        existingAcceptedRequestId.isNotEmpty &&
+        existingAcceptedRequestId != request.id) {
+      throw StateError(
+        "L'appuntamento è già collegato "
+            "alla Request '$existingAcceptedRequestId'.",
+      );
+    }
+
+    //--------------------------------------------------
     // UPDATE APPOINTMENT
     //--------------------------------------------------
 
-    await context.appointmentRequestService.applyAcceptedRequest(
+    await context.appointmentRequestService
+        .applyAcceptedRequest(
       request: request,
       transaction: transaction,
     );
@@ -37,16 +151,18 @@ class AcceptRequestOperation extends RequestTransactionOperation {
     );
 
     //--------------------------------------------------
-    // TIMELINE
+    // TIMELINE - APPOINTMENT UPDATED
     //--------------------------------------------------
 
-    final appointmentEvent = RequestTimelineEvent(
+    final appointmentEvent =
+    RequestTimelineEvent(
       id: now.microsecondsSinceEpoch.toString(),
       requestId: updated.id,
       type: RequestTimelineEventType.appointmentUpdated,
       createdAt: now,
       author: RequestTimelineAuthor.system,
-      message: "L'appuntamento è stato aggiornato.",
+      message:
+      "L'appuntamento è stato aggiornato.",
     );
 
     createTimelineEvent(
@@ -57,13 +173,20 @@ class AcceptRequestOperation extends RequestTransactionOperation {
       ),
     );
 
-    final acceptedEvent = RequestTimelineEvent(
-      id: (now.microsecondsSinceEpoch + 1).toString(),
+    //--------------------------------------------------
+    // TIMELINE - ACCEPTED
+    //--------------------------------------------------
+
+    final acceptedEvent =
+    RequestTimelineEvent(
+      id: (now.microsecondsSinceEpoch + 1)
+          .toString(),
       requestId: updated.id,
       type: RequestTimelineEventType.accepted,
       createdAt: now,
       author: RequestTimelineAuthor.customer,
-      message: "La richiesta è stata accettata.",
+      message:
+      "La richiesta è stata accettata.",
     );
 
     createTimelineEvent(

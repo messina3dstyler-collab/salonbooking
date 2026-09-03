@@ -60,6 +60,20 @@ class AppointmentRequestService
   }
 
   //--------------------------------------------------
+  // ACCEPTED REQUEST REFERENCE
+  //--------------------------------------------------
+
+  Map<String, dynamic> _withAcceptedRequest(
+      AppointmentRequest request,
+      Map<String, dynamic> changes,
+      ) {
+    return {
+      ...changes,
+      'acceptedRequestId': request.id,
+    };
+  }
+
+  //--------------------------------------------------
   // RESCHEDULE
   //--------------------------------------------------
 
@@ -67,23 +81,36 @@ class AppointmentRequestService
       AppointmentRequest request,
       Transaction transaction,
       ) async {
-    final newStart =
-    request.payload["newStart"];
+    final newStart = request.payload['newStart'];
 
     if (newStart == null) {
-      return;
+      throw StateError(
+        "La Request '${request.id}' non contiene newStart.",
+      );
+    }
+
+    final parsedStart = DateTime.tryParse(
+      newStart.toString(),
+    );
+
+    if (parsedStart == null) {
+      throw StateError(
+        "newStart della Request '${request.id}' "
+            "non è una data valida.",
+      );
     }
 
     await _repository.patchAppointment(
       appointmentId: request.appointmentId,
       transaction: transaction,
-      changes: {
-        "date": Timestamp.fromDate(
-          DateTime.parse(
-            newStart.toString(),
+      changes: _withAcceptedRequest(
+        request,
+        {
+          'date': Timestamp.fromDate(
+            parsedStart,
           ),
-        ),
-      },
+        },
+      ),
     );
   }
 
@@ -96,19 +123,26 @@ class AppointmentRequestService
       Transaction transaction,
       ) async {
     final employeeId =
-        request.payload["newEmployeeId"] ??
-            request.payload["newEmployee"];
+        request.payload['newEmployeeId'] ??
+            request.payload['newEmployee'];
 
-    if (employeeId == null) {
-      return;
+    if (employeeId == null ||
+        employeeId.toString().trim().isEmpty) {
+      throw StateError(
+        "La Request '${request.id}' non contiene "
+            "un nuovo employeeId.",
+      );
     }
 
     await _repository.patchAppointment(
       appointmentId: request.appointmentId,
       transaction: transaction,
-      changes: {
-        "employeeId": employeeId,
-      },
+      changes: _withAcceptedRequest(
+        request,
+        {
+          'employeeId': employeeId.toString().trim(),
+        },
+      ),
     );
   }
 
@@ -121,19 +155,26 @@ class AppointmentRequestService
       Transaction transaction,
       ) async {
     final serviceId =
-        request.payload["newServiceId"] ??
-            request.payload["serviceId"];
+        request.payload['newServiceId'] ??
+            request.payload['serviceId'];
 
-    if (serviceId == null) {
-      return;
+    if (serviceId == null ||
+        serviceId.toString().trim().isEmpty) {
+      throw StateError(
+        "La Request '${request.id}' non contiene "
+            "un nuovo serviceId.",
+      );
     }
 
     await _repository.patchAppointment(
       appointmentId: request.appointmentId,
       transaction: transaction,
-      changes: {
-        "serviceId": serviceId,
-      },
+      changes: _withAcceptedRequest(
+        request,
+        {
+          'serviceId': serviceId.toString().trim(),
+        },
+      ),
     );
   }
 
@@ -148,9 +189,12 @@ class AppointmentRequestService
     await _repository.patchAppointment(
       appointmentId: request.appointmentId,
       transaction: transaction,
-      changes: const {
-        "status": "Annullata",
-      },
+      changes: _withAcceptedRequest(
+        request,
+        {
+          'status': 'Annullata',
+        },
+      ),
     );
   }
 
@@ -162,6 +206,13 @@ class AppointmentRequestService
       AppointmentRequest request,
       Transaction transaction,
       ) async {
-    // Estensione futura.
+    await _repository.patchAppointment(
+      appointmentId: request.appointmentId,
+      transaction: transaction,
+      changes: _withAcceptedRequest(
+        request,
+        const {},
+      ),
+    );
   }
 }

@@ -12,26 +12,21 @@ class AppointmentModel {
     required this.createdAt,
     required this.updatedAt,
     required this.duration,
-
     this.salonName = '',
     this.salonAddress = '',
-
     this.customerName = '',
     this.customerPhone = '',
-
     this.employeeName = '',
     this.employeePhone = '',
     this.employeeSpecialization = '',
     this.employeeRating = 0,
-
     this.serviceName = '',
     this.serviceDuration = 0,
     this.price = 0,
-
     this.notes = '',
-
     this.reviewId,
     this.hasReview = false,
+    this.acceptedRequestId,
   });
 
   final String id;
@@ -70,6 +65,14 @@ class AppointmentModel {
   final String? reviewId;
   final bool hasReview;
 
+  /// ID della Request che ha prodotto l'ultimo aggiornamento
+  /// accettato dell'appuntamento.
+  ///
+  /// È opzionale per mantenere compatibilità con gli
+  /// appuntamenti creati prima dell'introduzione del workflow
+  /// Request -> Appointment.
+  final String? acceptedRequestId;
+
   factory AppointmentModel.fromMap(
       String id,
       Map<String, dynamic> json,
@@ -106,18 +109,31 @@ class AppointmentModel {
 
       price: _double(json['price']),
 
-      date: _timestamp(json['date']),
+      date: _timestamp(
+        json['date'],
+        fieldName: 'date',
+      ),
 
       status: json['status']?.toString() ?? 'Prenotata',
 
-      createdAt: _timestamp(json['createdAt']),
-      updatedAt: _timestamp(json['updatedAt']),
+      createdAt: _timestamp(
+        json['createdAt'],
+        fieldName: 'createdAt',
+      ),
+
+      updatedAt: _timestamp(
+        json['updatedAt'],
+        fieldName: 'updatedAt',
+      ),
 
       notes: json['notes']?.toString() ?? '',
 
       reviewId: json['reviewId']?.toString(),
 
       hasReview: _bool(json['hasReview']),
+
+      acceptedRequestId:
+      json['acceptedRequestId']?.toString(),
     );
   }
 
@@ -157,6 +173,8 @@ class AppointmentModel {
 
       'reviewId': reviewId,
       'hasReview': hasReview,
+
+      'acceptedRequestId': acceptedRequestId,
     };
   }
 
@@ -168,6 +186,8 @@ class AppointmentModel {
     bool? hasReview,
     bool clearReview = false,
     int? duration,
+    String? acceptedRequestId,
+    bool clearAcceptedRequest = false,
   }) {
     return AppointmentModel(
       id: id,
@@ -209,10 +229,15 @@ class AppointmentModel {
           : reviewId ?? this.reviewId,
 
       hasReview: hasReview ?? this.hasReview,
+
+      acceptedRequestId: clearAcceptedRequest
+          ? null
+          : acceptedRequestId ?? this.acceptedRequestId,
     );
   }
 
   DateTime get appointmentDate => date.toDate();
+
   DateTime get appointmentStart => date.toDate();
 
   DateTime get appointmentEnd =>
@@ -256,7 +281,10 @@ class AppointmentModel {
     }
   }
 
-  static Timestamp _timestamp(dynamic value) {
+  static Timestamp _timestamp(
+      dynamic value, {
+        required String fieldName,
+      }) {
     if (value is Timestamp) {
       return value;
     }
@@ -265,7 +293,10 @@ class AppointmentModel {
       return Timestamp.fromDate(value);
     }
 
-    return Timestamp.now();
+    throw StateError(
+      "Il campo '$fieldName' dell'Appointment non contiene "
+          "un Timestamp valido.",
+    );
   }
 
   static int _int(dynamic value) {
@@ -277,10 +308,11 @@ class AppointmentModel {
       return value.toInt();
     }
 
-    return int.tryParse(
+    final parsed = int.tryParse(
       value?.toString() ?? '',
-    ) ??
-        0;
+    );
+
+    return parsed ?? 0;
   }
 
   static double _double(dynamic value) {
@@ -292,11 +324,11 @@ class AppointmentModel {
       return value.toDouble();
     }
 
-    return double.tryParse(
-      (value?.toString() ?? '')
-          .replaceAll(',', '.'),
-    ) ??
-        0;
+    final parsed = double.tryParse(
+      (value?.toString() ?? '').replaceAll(',', '.'),
+    );
+
+    return parsed ?? 0;
   }
 
   static bool _bool(dynamic value) {
@@ -304,9 +336,6 @@ class AppointmentModel {
       return value;
     }
 
-    return value
-        ?.toString()
-        .toLowerCase() ==
-        'true';
+    return value?.toString().toLowerCase() == 'true';
   }
 }
