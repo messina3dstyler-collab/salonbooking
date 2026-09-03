@@ -12,23 +12,31 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function userExists() {
+      return signedIn()
+      && exists(
+        /databases/$(database)/documents/users/$(request.auth.uid)
+      );
+    }
+
     function currentUser() {
       return get(
         /databases/$(database)/documents/users/$(request.auth.uid)
       );
     }
 
-    // ---------------------------------------------------------
+    // =========================================================
     // SALON
+    // =========================================================
     //
-    // Nell'app il ruolo attuale del Salon è "admin".
-    // Non modifichiamo il codice Dart.
+    // Nell'app il ruolo del Salon è "admin".
     //
     // Employee NON è un utente autenticato.
-    // ---------------------------------------------------------
+    //
+    // =========================================================
 
     function isSalon() {
-      return signedIn()
+      return userExists()
       && currentUser().data.role == "admin"
       && currentUser().data.salonId is string
       && currentUser().data.salonId != "";
@@ -39,14 +47,16 @@ service cloud.firestore {
       && currentUser().data.salonId == salonId;
     }
 
-    // ---------------------------------------------------------
-    // USER
+    // =========================================================
+    // USER / CUSTOMER
+    // =========================================================
     //
-    // Nell'app il cliente finale è attualmente "customer".
-    // ---------------------------------------------------------
+    // Nell'app il cliente finale è "customer".
+    //
+    // =========================================================
 
     function isUser() {
-      return signedIn()
+      return userExists()
       && currentUser().data.role == "customer";
     }
 
@@ -62,18 +72,32 @@ service cloud.firestore {
 
     match /users/{userId} {
 
+      // -------------------------------------------------------
+      // READ
+      // -------------------------------------------------------
+
       // Un User può leggere il proprio profilo.
+      //
       // Un Salon può leggere i profili necessari alla propria
       // gestione.
       allow read: if
       isOwnUser(userId)
       || isSalon();
 
-      // Il documento users/{uid} può essere creato solo
+
+      // -------------------------------------------------------
+      // CREATE
+      // -------------------------------------------------------
+
+      // Il documento users/{uid} può essere creato solamente
       // dall'utente autenticato corrispondente.
       //
-      // Il ruolo non può essere scelto arbitrariamente:
-      // sono ammessi solamente Salon(admin) e User(customer).
+      // I soli ruoli applicativi ammessi sono:
+      // - admin
+      // - customer
+      //
+      // Il ruolo non può quindi essere arbitrario.
+
       allow create: if
       isOwnUser(userId)
       && request.resource.data.role is string
@@ -82,13 +106,19 @@ service cloud.firestore {
         || request.resource.data.role == "customer"
       );
 
-      // L'utente può modificare esclusivamente i propri dati
-      // di profilo.
+
+      // -------------------------------------------------------
+      // UPDATE
+      // -------------------------------------------------------
+
+      // L'utente può modificare solamente i propri dati
+      // personali.
       //
       // NON può modificare:
       // - role
       // - salonId
-      // - eventuali altri campi strutturali
+      // - altri campi strutturali
+      //
       allow update: if
       isOwnUser(userId)
       && request.resource.data.role == resource.data.role
@@ -101,6 +131,11 @@ service cloud.firestore {
         "phone",
         "photoUrl"
       ]);
+
+
+      // -------------------------------------------------------
+      // DELETE
+      // -------------------------------------------------------
 
       // I profili non vengono eliminati dal client.
       allow delete: if false;
@@ -116,14 +151,33 @@ service cloud.firestore {
       // I dati del salone sono necessari anche al cliente.
       allow read: if signedIn();
 
-      // Il Salon può creare il proprio documento.
+
+      // -------------------------------------------------------
+      // CREATE
+      // -------------------------------------------------------
+
+      // Durante la registrazione il Salon viene creato prima
+      // del documento users/{uid}.
+      //
+      // Per questo NON possiamo utilizzare ownsSalon() qui:
+      // il profilo users/{uid} potrebbe non esistere ancora.
+      //
+      // Il documento deve comunque appartenere allo stesso
+      // account Firebase che lo sta creando.
+      //
       allow create: if
       signedIn()
       && request.auth.uid == salonId;
 
-      // Il Salon può modificare esclusivamente il proprio salone.
+
+      // -------------------------------------------------------
+      // UPDATE
+      // -------------------------------------------------------
+
+      // Il Salon può modificare solamente il proprio documento.
       //
       // I campi ammessi corrispondono al SalonModel attuale.
+
       allow update: if
       ownsSalon(salonId)
       && request.resource.data.diff(resource.data)
@@ -146,6 +200,11 @@ service cloud.firestore {
         "taxId"
       ]);
 
+
+      // -------------------------------------------------------
+      // DELETE
+      // -------------------------------------------------------
+
       // Un Salon può eliminare solamente il proprio documento.
       allow delete: if ownsSalon(salonId);
 
@@ -154,13 +213,13 @@ service cloud.firestore {
       // EMPLOYEES
       // =======================================================
 
-      // Employee NON è un account.
+      // Employee NON è un account Firebase.
       //
-      // Sono semplicemente persone appartenenti al team
+      // È semplicemente una persona appartenente al team
       // del Salon.
       //
-      // Il cliente può leggerli perché servono alla prenotazione.
-      allow read: if signedIn();
+      // Il cliente può leggerli perché sono necessari
+      // alla prenotazione.
 
       match /employees/{employeeId} {
 
@@ -192,14 +251,27 @@ service cloud.firestore {
 
         allow read: if signedIn();
 
+
+        // -----------------------------------------------------
+        // CREATE
+        // -----------------------------------------------------
+
         // Solo il cliente autenticato può creare una recensione
         // per sé stesso e per il salone indicato.
+
         allow create: if
         isUser()
         && request.resource.data.userId == request.auth.uid
         && request.resource.data.salonId == salonId;
 
-        // Il Salon può gestire le recensioni del proprio salone.
+
+        // -----------------------------------------------------
+        // UPDATE / DELETE
+        // -----------------------------------------------------
+
+        // Il Salon può gestire solamente le recensioni
+        // del proprio salone.
+
         allow update, delete: if
         ownsSalon(salonId);
       }
@@ -210,6 +282,10 @@ service cloud.firestore {
       // =======================================================
 
       match /appointments/{appointmentId} {
+
+        // -----------------------------------------------------
+        // READ
+        // -----------------------------------------------------
 
         allow read: if
         signedIn()
@@ -222,8 +298,19 @@ service cloud.firestore {
           ownsSalon(salonId)
         );
 
+
+        // -----------------------------------------------------
+        // CREATE
+        // -----------------------------------------------------
+
+        // Gli appuntamenti nested sono creati dal Salon.
         allow create: if
         ownsSalon(salonId);
+
+
+        // -----------------------------------------------------
+        // UPDATE / DELETE
+        // -----------------------------------------------------
 
         allow update, delete: if
         ownsSalon(salonId);
@@ -237,9 +324,16 @@ service cloud.firestore {
 
     match /appointments/{appointmentId} {
 
-      // User -> solo i propri appuntamenti
+      // -------------------------------------------------------
+      // READ
+      // -------------------------------------------------------
+
+      // User:
+      // solamente i propri appuntamenti.
       //
-      // Salon -> solo appuntamenti del proprio salone
+      // Salon:
+      // solamente gli appuntamenti del proprio salone.
+
       allow read: if
       signedIn()
       && (
@@ -254,11 +348,17 @@ service cloud.firestore {
         )
       );
 
-      // Creazione:
+
+      // -------------------------------------------------------
+      // CREATE
+      // -------------------------------------------------------
+
+      // User:
+      // può creare un appuntamento per sé stesso.
       //
-      // User -> può creare un appuntamento per sé.
-      // Salon -> può creare appuntamenti appartenenti al proprio
-      // salone.
+      // Salon:
+      // può creare appuntamenti appartenenti al proprio salone.
+
       allow create: if
       signedIn()
       && (
@@ -274,9 +374,28 @@ service cloud.firestore {
         )
       );
 
-      // Il Salon può modificare/eliminare esclusivamente
-      // appuntamenti del proprio salone.
-      allow update, delete: if
+
+      // -------------------------------------------------------
+      // UPDATE
+      // -------------------------------------------------------
+
+      // Il Salon può modificare solamente appuntamenti
+      // appartenenti al proprio salone.
+
+      allow update: if
+      isSalon()
+      && resource.data.salonId
+      == currentUser().data.salonId;
+
+
+      // -------------------------------------------------------
+      // DELETE
+      // -------------------------------------------------------
+
+      // Il Salon può eliminare solamente appuntamenti
+      // appartenenti al proprio salone.
+
+      allow delete: if
       isSalon()
       && resource.data.salonId
       == currentUser().data.salonId;
@@ -298,6 +417,7 @@ service cloud.firestore {
       //
       // User:
       // solamente Request di cui è customerId.
+
       allow read: if
       signedIn()
       && (
@@ -321,10 +441,10 @@ service cloud.firestore {
 
       // Le Request vengono create dal Salon.
       //
-      // Employee NON può crearle perché Employee non è
-      // autenticato.
+      // Employee NON può crearle perché non è autenticato.
       //
       // Il customer non può inventarsi una Request.
+
       allow create: if
       isSalon()
       && request.resource.data.id == requestId
@@ -348,11 +468,11 @@ service cloud.firestore {
       // SALON
       //
       // Il Salon può modificare solamente:
-      //
       // - status
       // - updatedAt
       //
-      // Tutto ciò che identifica la Request rimane immutabile.
+      // Tutti gli altri dati identificativi della Request
+      // rimangono immutabili.
       //
       // Transizioni consentite:
       //
@@ -362,7 +482,7 @@ service cloud.firestore {
       // pendingCustomer
       //   -> cancelled
       //   -> expired
-      //
+
       allow update: if
       (
         isSalon()
@@ -422,12 +542,12 @@ service cloud.firestore {
       // Il cliente può solamente rispondere a una Request
       // pendente.
       //
-      // Le sole transizioni consentite sono:
+      // Transizioni consentite:
       //
       // pendingCustomer
       //   -> accepted
       //   -> rejected
-      //
+
       (
         isUser()
         && resource.data.customerId
@@ -471,6 +591,10 @@ service cloud.firestore {
       );
 
 
+      // -------------------------------------------------------
+      // DELETE
+      // -------------------------------------------------------
+
       // Le Request non vengono cancellate dal client.
       allow delete: if false;
 
@@ -481,7 +605,12 @@ service cloud.firestore {
 
       match /timeline/{eventId} {
 
+        // -----------------------------------------------------
+        // READ
+        // -----------------------------------------------------
+
         // Stessa visibilità della Request padre.
+
         allow read: if
         signedIn()
         && (
@@ -505,22 +634,26 @@ service cloud.firestore {
         );
 
 
+        // -----------------------------------------------------
+        // UPDATE / DELETE
+        // -----------------------------------------------------
+
         // Timeline APPEND ONLY.
         //
         // Una volta creato un evento:
-        //
         // - non può essere modificato
         // - non può essere cancellato
+
         allow update, delete: if false;
 
 
         // -----------------------------------------------------
-        // TIMELINE CREATE
+        // CREATE - SALON
         // -----------------------------------------------------
 
-        // Salon / sistema:
-        // gli eventi possono essere aggiunti solamente alla
+        // Gli eventi possono essere aggiunti solamente alla
         // Request appartenente al proprio Salon.
+
         allow create: if
         isSalon()
         &&
@@ -533,14 +666,16 @@ service cloud.firestore {
         && request.resource.data.requestId == requestId;
 
 
-        // User:
-        // può aggiungere esclusivamente l'evento relativo alla
-        // propria risposta.
+        // -----------------------------------------------------
+        // CREATE - USER
+        // -----------------------------------------------------
+
+        // Il cliente può aggiungere esclusivamente l'evento
+        // relativo alla propria risposta.
         //
-        // La Request deve risultare nello stato finale corretto.
-        //
-        // getAfter() permette di verificare lo stato della Request
+        // getAfter() verifica lo stato della Request
         // dopo la transazione/batch ma prima del commit.
+
         allow create: if
         isUser()
 
@@ -583,8 +718,17 @@ service cloud.firestore {
 
     match /employee_calendar/{eventId} {
 
+      // -------------------------------------------------------
+      // READ
+      // -------------------------------------------------------
+
       // Il calendario appartiene al Salon.
+      //
       // Employee non è un account.
+      //
+      // Il cliente può leggere il calendario perché necessario
+      // al flusso di prenotazione.
+
       allow read: if
       signedIn()
       && (
@@ -597,9 +741,40 @@ service cloud.firestore {
         isUser()
       );
 
-      allow create, update, delete: if
+
+      // -------------------------------------------------------
+      // CREATE
+      // -------------------------------------------------------
+
+      allow create: if
       isSalon()
       && request.resource.data.salonId
+      == currentUser().data.salonId;
+
+
+      // -------------------------------------------------------
+      // UPDATE
+      // -------------------------------------------------------
+
+      allow update: if
+      isSalon()
+      && resource.data.salonId
+      == currentUser().data.salonId
+      && request.resource.data.salonId
+      == currentUser().data.salonId;
+
+
+      // -------------------------------------------------------
+      // DELETE
+      // -------------------------------------------------------
+
+      // IMPORTANTE:
+      // durante delete request.resource non esiste.
+      // Bisogna quindi controllare resource.
+
+      allow delete: if
+      isSalon()
+      && resource.data.salonId
       == currentUser().data.salonId;
     }
 

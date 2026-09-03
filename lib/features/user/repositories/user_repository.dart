@@ -42,15 +42,4 @@ class UserRepository {
       'phone': phone,
     });
   }
-
-  Future<void> updateRole({
-    required String userId,
-    required String role,
-    String? salonId,
-  }) async {
-    await _users.doc(userId).update({
-      'role': role,
-      'salonId': salonId,
-    });
-  }
 }

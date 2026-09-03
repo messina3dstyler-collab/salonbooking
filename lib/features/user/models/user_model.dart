@@ -14,10 +14,13 @@ class UserModel {
   final String email;
   final String phone;
 
-  /// customer | salon
+  /// customer | admin
+  ///
+  /// customer = cliente finale
+  /// admin = account del Salon
   final String role;
 
-  /// Valorizzato solo per gli account salone
+  /// Valorizzato per gli account Salon (admin).
   final String? salonId;
 
   final DateTime createdAt;
@@ -73,5 +76,5 @@ class UserModel {
 
   bool get isCustomer => role == 'customer';
 
-  bool get isSalon => role == 'salon';
+  bool get isAdmin => role == 'admin';
 }
