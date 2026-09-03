@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../models/employee_calendar_model.dart';
@@ -37,7 +38,10 @@ class _EmployeeEventFormState
 
   bool _allDay = false;
 
+  bool _saving = false;
+
   late TextEditingController _titleController;
+
   late TextEditingController _noteController;
 
   @override
@@ -89,11 +93,9 @@ class _EmployeeEventFormState
         minute: 0,
       );
 
-      _titleController =
-          TextEditingController();
+      _titleController = TextEditingController();
 
-      _noteController =
-          TextEditingController();
+      _noteController = TextEditingController();
     }
   }
 
@@ -112,7 +114,9 @@ class _EmployeeEventFormState
       lastDate: DateTime(2035),
     );
 
-    if (picked == null) return;
+    if (picked == null) {
+      return;
+    }
 
     setState(() {
       _date = picked;
@@ -125,7 +129,9 @@ class _EmployeeEventFormState
       initialTime: _start,
     );
 
-    if (picked == null) return;
+    if (picked == null) {
+      return;
+    }
 
     setState(() {
       _start = picked;
@@ -138,14 +144,57 @@ class _EmployeeEventFormState
       initialTime: _end,
     );
 
-    if (picked == null) return;
+    if (picked == null) {
+      return;
+    }
 
     setState(() {
       _end = picked;
     });
   }
 
-  void _save() {
+  Future<String?> _resolveSalonId() async {
+    final existingSalonId = widget.event?.salonId;
+
+    if (existingSalonId != null &&
+        existingSalonId.trim().isNotEmpty) {
+      return existingSalonId.trim();
+    }
+
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      return null;
+    }
+
+    final snapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .get();
+
+    if (!snapshot.exists) {
+      return null;
+    }
+
+    final data = snapshot.data();
+
+    if (data == null) {
+      return null;
+    }
+
+    final salonId = data['salonId']?.toString().trim() ?? '';
+
+    if (salonId.isEmpty) {
+      return null;
+    }
+
+    return salonId;
+  }
+
+  Future<void> _save() async {
+    if (_saving) {
+      return;
+    }
 
     if (!_formKey.currentState!.validate()) {
       return;
@@ -167,13 +216,11 @@ class _EmployeeEventFormState
       _allDay ? 59 : _end.minute,
     );
 
-    if (endDate.isBefore(startDate)) {
-
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
+    if (!endDate.isAfter(startDate)) {
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'L\'orario finale deve essere successivo.',
+            'L\'orario finale deve essere successivo a quello iniziale.',
           ),
         ),
       );
@@ -181,54 +228,73 @@ class _EmployeeEventFormState
       return;
     }
 
-    final model = EmployeeCalendarModel(
+    setState(() {
+      _saving = true;
+    });
 
-      id: widget.event?.id ??
-          FirebaseFirestore.instance
-              .collection(
-                'employee_calendar',
-              )
-              .doc()
-              .id,
+    try {
+      final salonId = await _resolveSalonId();
 
-      employeeId: widget.employeeId,
+      if (salonId == null || salonId.isEmpty) {
+        if (!mounted) {
+          return;
+        }
 
-      start: Timestamp.fromDate(
-        startDate,
-      ),
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Impossibile determinare il salone dell\'evento.',
+            ),
+          ),
+        );
 
-      end: Timestamp.fromDate(
-        endDate,
-      ),
+        return;
+      }
 
-      type: _type,
+      final model = EmployeeCalendarModel(
+        id: widget.event?.id ??
+            FirebaseFirestore.instance
+                .collection('employee_calendar')
+                .doc()
+                .id,
+        employeeId: widget.employeeId,
+        salonId: salonId,
+        start: Timestamp.fromDate(
+          startDate,
+        ),
+        end: Timestamp.fromDate(
+          endDate,
+        ),
+        type: _type,
+        title: _titleController.text.trim(),
+        note: _noteController.text.trim(),
+        allDay: _allDay,
+        createdAt:
+        widget.event?.createdAt ??
+            Timestamp.now(),
+      );
 
-      title: _titleController.text.trim(),
+      if (!mounted) {
+        return;
+      }
 
-      note: _noteController.text.trim(),
-
-      allDay: _allDay,
-
-      createdAt:
-          widget.event?.createdAt ??
-              Timestamp.now(),
-    );
-
-    widget.onSaved(model);
+      widget.onSaved(model);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _saving = false;
+        });
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-
     return Form(
-
       key: _formKey,
-
       child: Column(
-
         crossAxisAlignment:
-            CrossAxisAlignment.stretch,
-
+        CrossAxisAlignment.stretch,
         children: [
           DropdownButtonFormField<CalendarEventType>(
             initialValue: _type,
@@ -238,104 +304,128 @@ class _EmployeeEventFormState
             items: CalendarEventType.values
                 .map(
                   (e) => DropdownMenuItem(
-                    value: e,
-                    child: Text(_label(e)),
-                  ),
-                )
+                value: e,
+                child: Text(
+                  _label(e),
+                ),
+              ),
+            )
                 .toList(),
-            onChanged: (value) {
-              if (value == null) return;
+            onChanged: _saving
+                ? null
+                : (value) {
+              if (value == null) {
+                return;
+              }
+
               setState(() {
                 _type = value;
               });
             },
           ),
-
           const SizedBox(height: 16),
-
           TextFormField(
             controller: _titleController,
+            enabled: !_saving,
             decoration: const InputDecoration(
               labelText: 'Titolo',
             ),
           ),
-
           const SizedBox(height: 16),
-
           TextFormField(
             controller: _noteController,
+            enabled: !_saving,
             decoration: const InputDecoration(
               labelText: 'Note',
             ),
             maxLines: 3,
           ),
-
           const SizedBox(height: 20),
-
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text(
               'Evento giornata intera',
             ),
             value: _allDay,
-            onChanged: (v) {
+            onChanged: _saving
+                ? null
+                : (value) {
               setState(() {
-                _allDay = v;
+                _allDay = value;
               });
             },
           ),
-
           const SizedBox(height: 12),
-
           ListTile(
-            leading: const Icon(Icons.calendar_today),
+            leading: const Icon(
+              Icons.calendar_today,
+            ),
             title: Text(
               '${_date.day}/${_date.month}/${_date.year}',
             ),
-            trailing: const Icon(Icons.edit),
-            onTap: _pickDate,
+            trailing: const Icon(
+              Icons.edit,
+            ),
+            onTap: _saving ? null : _pickDate,
           ),
-
           if (!_allDay) ...[
             ListTile(
-              leading: const Icon(Icons.schedule),
+              leading: const Icon(
+                Icons.schedule,
+              ),
               title: Text(
                 'Inizio ${_start.format(context)}',
               ),
-              trailing: const Icon(Icons.edit),
-              onTap: _pickStart,
+              trailing: const Icon(
+                Icons.edit,
+              ),
+              onTap: _saving ? null : _pickStart,
             ),
             ListTile(
-              leading: const Icon(Icons.schedule),
+              leading: const Icon(
+                Icons.schedule,
+              ),
               title: Text(
                 'Fine ${_end.format(context)}',
               ),
-              trailing: const Icon(Icons.edit),
-              onTap: _pickEnd,
+              trailing: const Icon(
+                Icons.edit,
+              ),
+              onTap: _saving ? null : _pickEnd,
             ),
           ],
-
           const SizedBox(height: 24),
-
           Row(
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed: widget.onCancel,
+                  onPressed:
+                  _saving ? null : widget.onCancel,
                   child: const Text(
                     'Annulla',
                   ),
                 ),
               ),
-
               const SizedBox(width: 12),
-
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: _save,
-                  icon: const Icon(Icons.save),
-                  label: const Text(
-                    'Salva',
+                  onPressed: _saving ? null : _save,
+                  icon: _saving
+                      ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child:
+                    CircularProgressIndicator(
+                      strokeWidth: 2,
+                    ),
+                  )
+                      : const Icon(
+                    Icons.save,
+                  ),
+                  label: Text(
+                    _saving
+                        ? 'Salvataggio...'
+                        : 'Salva',
                   ),
                 ),
               ),

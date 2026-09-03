@@ -20,7 +20,8 @@ class AdminAgendaService {
   }) async {
     final agenda = <AdminAgendaItem>[];
 
-    final appointments = await _appointmentsService.getAppointmentsByDate(
+    final appointments =
+    await _appointmentsService.getAppointmentsByDate(
       salonId: salonId,
       date: date,
     );
@@ -32,7 +33,9 @@ class AdminAgendaService {
     );
 
     for (final employeeId in employeeNames.keys) {
-      final events = await _calendarService.getEventsByEmployeeAndDate(
+      final events =
+      await _calendarService.getEventsByEmployeeAndDate(
+        salonId: salonId,
         employeeId: employeeId,
         date: date,
       );
@@ -40,7 +43,8 @@ class AdminAgendaService {
       agenda.addAll(
         events.map(
               (e) => e.toAdminAgendaItem(
-            employeeName: employeeNames[e.employeeId] ?? 'Operatore',
+            employeeName:
+            employeeNames[e.employeeId] ?? 'Operatore',
           ),
         ),
       );

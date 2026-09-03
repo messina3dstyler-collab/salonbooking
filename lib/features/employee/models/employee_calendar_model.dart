@@ -12,6 +12,7 @@ class EmployeeCalendarModel {
   const EmployeeCalendarModel({
     required this.id,
     required this.employeeId,
+    required this.salonId,
     required this.start,
     required this.end,
     required this.type,
@@ -23,6 +24,7 @@ class EmployeeCalendarModel {
 
   final String id;
   final String employeeId;
+  final String salonId;
 
   final Timestamp start;
   final Timestamp end;
@@ -43,21 +45,21 @@ class EmployeeCalendarModel {
     return EmployeeCalendarModel(
       id: id,
       employeeId: json['employeeId']?.toString() ?? '',
+      salonId: json['salonId']?.toString() ?? '',
       start: json['start'] as Timestamp,
       end: json['end'] as Timestamp,
       type: _parseType(json['type']),
       title: json['title']?.toString() ?? '',
       note: json['note']?.toString() ?? '',
       allDay: json['allDay'] == true,
-      createdAt:
-      json['createdAt'] as Timestamp? ??
-          Timestamp.now(),
+      createdAt: json['createdAt'] as Timestamp? ?? Timestamp.now(),
     );
   }
 
   Map<String, dynamic> toMap() {
     return {
       'employeeId': employeeId,
+      'salonId': salonId,
       'start': start,
       'end': end,
       'type': type.name,
@@ -70,6 +72,7 @@ class EmployeeCalendarModel {
 
   EmployeeCalendarModel copyWith({
     String? employeeId,
+    String? salonId,
     Timestamp? start,
     Timestamp? end,
     CalendarEventType? type,
@@ -79,8 +82,8 @@ class EmployeeCalendarModel {
   }) {
     return EmployeeCalendarModel(
       id: id,
-      employeeId:
-      employeeId ?? this.employeeId,
+      employeeId: employeeId ?? this.employeeId,
+      salonId: salonId ?? this.salonId,
       start: start ?? this.start,
       end: end ?? this.end,
       type: type ?? this.type,
@@ -95,11 +98,9 @@ class EmployeeCalendarModel {
 
   DateTime get endDate => end.toDate();
 
-  Duration get duration =>
-      endDate.difference(startDate);
+  Duration get duration => endDate.difference(startDate);
 
-  int get durationMinutes =>
-      duration.inMinutes;
+  int get durationMinutes => duration.inMinutes;
 
   bool get isAllDay => allDay;
 
@@ -107,8 +108,7 @@ class EmployeeCalendarModel {
       DateTime start,
       DateTime end,
       ) {
-    return startDate.isBefore(end) &&
-        endDate.isAfter(start);
+    return startDate.isBefore(end) && endDate.isAfter(start);
   }
 
   EmployeeCalendarModel moveByMinutes(
@@ -127,15 +127,14 @@ class EmployeeCalendarModel {
       ),
     );
   }
+
   EmployeeCalendarModel resizeToMinutes(
       int durationMinutes,
-      ){
+      ) {
     return copyWith(
       end: Timestamp.fromDate(
         startDate.add(
-          Duration(
-            minutes: durationMinutes,
-          ),
+          Duration(minutes: durationMinutes),
         ),
       ),
     );
@@ -147,14 +146,19 @@ class EmployeeCalendarModel {
     switch (value) {
       case 'vacation':
         return CalendarEventType.vacation;
+
       case 'sick':
         return CalendarEventType.sick;
+
       case 'breakTime':
         return CalendarEventType.breakTime;
+
       case 'meeting':
         return CalendarEventType.meeting;
+
       case 'blocked':
         return CalendarEventType.blocked;
+
       default:
         return CalendarEventType.blocked;
     }

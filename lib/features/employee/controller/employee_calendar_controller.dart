@@ -21,6 +21,7 @@ class EmployeeCalendarController extends ChangeNotifier {
   String? get error => _error;
 
   Future<void> loadEvents({
+    required String salonId,
     required String employeeId,
     required DateTime date,
   }) async {
@@ -30,6 +31,7 @@ class EmployeeCalendarController extends ChangeNotifier {
 
     try {
       _events = await _service.getEventsByEmployeeAndDate(
+        salonId: salonId,
         employeeId: employeeId,
         date: date,
       );
@@ -40,17 +42,21 @@ class EmployeeCalendarController extends ChangeNotifier {
     _loading = false;
     notifyListeners();
   }
+
   Future<List<EmployeeCalendarModel>> getEventsByEmployeeAndDate({
+    required String salonId,
     required String employeeId,
     required DateTime date,
   }) {
     return _service.getEventsByEmployeeAndDate(
+      salonId: salonId,
       employeeId: employeeId,
       date: date,
     );
   }
 
   Future<void> loadEmployeeEvents({
+    required String salonId,
     required String employeeId,
   }) async {
     _loading = true;
@@ -59,6 +65,7 @@ class EmployeeCalendarController extends ChangeNotifier {
 
     try {
       _events = await _service.getEventsByEmployee(
+        salonId: salonId,
         employeeId: employeeId,
       );
     } catch (e) {
@@ -70,42 +77,32 @@ class EmployeeCalendarController extends ChangeNotifier {
   }
 
   Future<EmployeeCalendarModel?> getEvent({
+    required String salonId,
     required String eventId,
   }) {
     return _service.getEvent(
+      salonId: salonId,
       eventId: eventId,
     );
   }
 
   Future<void> createEvent({
+    required String salonId,
     required EmployeeCalendarModel event,
   }) async {
     await _service.createEvent(
+      salonId: salonId,
       event: event,
     );
 
-    _events.add(event);
-
-    _events.sort(
-          (a, b) => a.start.compareTo(b.start),
-    );
-
-    notifyListeners();
-  }
-
-  Future<void> updateEvent({
-    required EmployeeCalendarModel event,
-  }) async {
-    await _service.updateEvent(
-      event: event,
-    );
-
-    final index = _events.indexWhere(
+    final existingIndex = _events.indexWhere(
           (e) => e.id == event.id,
     );
 
-    if (index != -1) {
-      _events[index] = event;
+    if (existingIndex == -1) {
+      _events.add(event);
+    } else {
+      _events[existingIndex] = event;
     }
 
     _events.sort(
@@ -115,10 +112,36 @@ class EmployeeCalendarController extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> updateEvent({
+    required String salonId,
+    required EmployeeCalendarModel event,
+  }) async {
+    await _service.updateEvent(
+      salonId: salonId,
+      event: event,
+    );
+
+    final index = _events.indexWhere(
+          (e) => e.id == event.id,
+    );
+
+    if (index != -1) {
+      _events[index] = event;
+
+      _events.sort(
+            (a, b) => a.start.compareTo(b.start),
+      );
+    }
+
+    notifyListeners();
+  }
+
   Future<void> deleteEvent({
+    required String salonId,
     required String eventId,
   }) async {
     await _service.deleteEvent(
+      salonId: salonId,
       eventId: eventId,
     );
 
@@ -130,9 +153,11 @@ class EmployeeCalendarController extends ChangeNotifier {
   }
 
   Stream<List<EmployeeCalendarModel>> watchEvents({
+    required String salonId,
     required String employeeId,
   }) {
     return _service.watchEventsByEmployee(
+      salonId: salonId,
       employeeId: employeeId,
     );
   }
@@ -147,6 +172,12 @@ class EmployeeCalendarController extends ChangeNotifier {
   List<EmployeeCalendarModel> eventsForDay(
       DateTime day,
       ) {
+    final current = DateTime(
+      day.year,
+      day.month,
+      day.day,
+    );
+
     return _events.where(
           (event) {
         final start = DateTime(
@@ -159,12 +190,6 @@ class EmployeeCalendarController extends ChangeNotifier {
           event.endDate.year,
           event.endDate.month,
           event.endDate.day,
-        );
-
-        final current = DateTime(
-          day.year,
-          day.month,
-          day.day,
         );
 
         return !current.isBefore(start) &&
