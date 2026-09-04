@@ -7,10 +7,12 @@ class EmployeeEventDialog extends StatelessWidget {
   const EmployeeEventDialog({
     super.key,
     required this.employeeId,
+    required this.salonId,
     this.event,
   });
 
   final String employeeId;
+  final String salonId;
   final EmployeeCalendarModel? event;
 
   bool get isEditing => event != null;
@@ -68,12 +70,12 @@ class EmployeeEventDialog extends StatelessWidget {
                 ],
               ),
             ),
-
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(20),
                 child: EmployeeEventForm(
                   employeeId: employeeId,
+                  salonId: salonId,
                   event: event,
                   onSaved: (
                       EmployeeCalendarModel result,

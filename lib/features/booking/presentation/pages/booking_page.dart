@@ -145,6 +145,7 @@ class _BookingPageState
     print("STEP 3 - carico calendario");
 
     await calendarController.loadEvents(
+      salonId: widget.salon.id,
       employeeId: widget.employee.id,
       date: date!,
     );

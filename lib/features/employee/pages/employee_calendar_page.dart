@@ -36,17 +36,18 @@ class _EmployeeCalendarPageState
     await ref
         .read(employeeCalendarControllerProvider)
         .loadEvents(
-          employeeId: widget.employee.id,
-          date: _selectedDay,
-        );
+      salonId: widget.employee.salonId,
+      employeeId: widget.employee.id,
+      date: _selectedDay,
+    );
   }
 
   Future<void> _createEvent() async {
-    final event =
-        await showDialog<EmployeeCalendarModel>(
+    final event = await showDialog<EmployeeCalendarModel>(
       context: context,
       builder: (_) => EmployeeEventDialog(
         employeeId: widget.employee.id,
+        salonId: widget.employee.salonId,
       ),
     );
 
@@ -54,30 +55,35 @@ class _EmployeeCalendarPageState
       return;
     }
 
-    try{
+    try {
       await ref
           .read(employeeCalendarControllerProvider)
-          .createEvent(event:event);
+          .createEvent(
+        salonId: widget.employee.salonId,
+        event: event,
+      );
 
       await _loadDay();
 
       debugPrint('EVENTO SALVATO');
-    }catch(e,st){
+    } catch (e, st) {
       debugPrint(e.toString());
       debugPrint(st.toString());
 
-      if(mounted){
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content:Text(e.toString())),
+          SnackBar(
+            content: Text(e.toString()),
+          ),
         );
       }
     }
   }
+
   Future<void> _onEventTap(
-    EmployeeCalendarModel event,
-  ) async {
-    final action =
-        await showModalBottomSheet<String>(
+      EmployeeCalendarModel event,
+      ) async {
+    final action = await showModalBottomSheet<String>(
       context: context,
       builder: (_) => SafeArea(
         child: Wrap(
@@ -123,10 +129,11 @@ class _EmployeeCalendarPageState
 
     if (action == 'edit') {
       final updated =
-          await showDialog<EmployeeCalendarModel>(
+      await showDialog<EmployeeCalendarModel>(
         context: context,
         builder: (_) => EmployeeEventDialog(
           employeeId: widget.employee.id,
+          salonId: widget.employee.salonId,
           event: event,
         ),
       );
@@ -138,8 +145,9 @@ class _EmployeeCalendarPageState
       await ref
           .read(employeeCalendarControllerProvider)
           .updateEvent(
-            event: updated,
-          );
+        salonId: widget.employee.salonId,
+        event: updated,
+      );
 
       await _loadDay();
 
@@ -147,8 +155,7 @@ class _EmployeeCalendarPageState
     }
 
     if (action == 'delete') {
-      final confirm =
-          await showDialog<bool>(
+      final confirm = await showDialog<bool>(
         context: context,
         builder: (_) => AlertDialog(
           title: const Text(
@@ -191,69 +198,71 @@ class _EmployeeCalendarPageState
       await ref
           .read(employeeCalendarControllerProvider)
           .deleteEvent(
-            eventId: event.id,
-          );
+        salonId: widget.employee.salonId,
+        eventId: event.id,
+      );
 
       await _loadDay();
     }
   }
+
   bool _isEventValid(
       EmployeeCalendarModel event,
-      ){
-    final controller=
+      ) {
+    final controller =
     ref.read(employeeCalendarControllerProvider);
 
-    if(controller.hasConflict(
-      start:event.startDate,
-      end:event.endDate,
-      ignoreEventId:event.id,
-    )){
+    if (controller.hasConflict(
+      start: event.startDate,
+      end: event.endDate,
+      ignoreEventId: event.id,
+    )) {
       return false;
     }
 
-    if(!widget.employee.workingDays
-        .contains(event.startDate.weekday)){
+    if (!widget.employee.workingDays
+        .contains(event.startDate.weekday)) {
       return false;
     }
 
-    final start=
-        event.startDate.hour*60+
+    final start =
+        event.startDate.hour * 60 +
             event.startDate.minute;
 
-    final end=
-        event.endDate.hour*60+
+    final end =
+        event.endDate.hour * 60 +
             event.endDate.minute;
 
-    if(start<widget.employee.startHour*60){
+    if (start < widget.employee.startHour * 60) {
       return false;
     }
 
-    if(end>widget.employee.endHour*60){
+    if (end > widget.employee.endHour * 60) {
       return false;
     }
 
-    if(widget.employee.hasBreak){
-      if(start<widget.employee.breakEnd &&
-          end>widget.employee.breakStart){
+    if (widget.employee.hasBreak) {
+      if (start < widget.employee.breakEnd &&
+          end > widget.employee.breakStart) {
         return false;
       }
     }
 
     return true;
   }
+
   Future<void> _onEventMoved(
       EmployeeCalendarModel event,
       ) async {
-
-    final controller=
+    final controller =
     ref.read(employeeCalendarControllerProvider);
 
-    if(controller.hasConflict(
-      start:event.startDate,
-      end:event.endDate,
-      ignoreEventId:event.id,
-    )){
-      if(mounted){
+    if (controller.hasConflict(
+      start: event.startDate,
+      end: event.endDate,
+      ignoreEventId: event.id,
+    )) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
@@ -262,13 +271,14 @@ class _EmployeeCalendarPageState
           ),
         );
       }
+
       await _loadDay();
       return;
     }
 
-    if(!widget.employee.workingDays
-        .contains(event.startDate.weekday)){
-      if(mounted){
+    if (!widget.employee.workingDays
+        .contains(event.startDate.weekday)) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
@@ -277,27 +287,28 @@ class _EmployeeCalendarPageState
           ),
         );
       }
+
       await _loadDay();
       return;
     }
 
-    final startMinutes=
-        event.startDate.hour*60+
+    final startMinutes =
+        event.startDate.hour * 60 +
             event.startDate.minute;
 
-    final endMinutes=
-        event.endDate.hour*60+
+    final endMinutes =
+        event.endDate.hour * 60 +
             event.endDate.minute;
 
-    final workStart=
-        widget.employee.startHour*60;
+    final workStart =
+        widget.employee.startHour * 60;
 
-    final workEnd=
-        widget.employee.endHour*60;
+    final workEnd =
+        widget.employee.endHour * 60;
 
-    if(startMinutes<workStart||
-        endMinutes>workEnd){
-      if(mounted){
+    if (startMinutes < workStart ||
+        endMinutes > workEnd) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
@@ -306,24 +317,24 @@ class _EmployeeCalendarPageState
           ),
         );
       }
+
       await _loadDay();
       return;
     }
 
-    if(widget.employee.hasBreak){
-
-      final breakStart=
+    if (widget.employee.hasBreak) {
+      final breakStart =
           widget.employee.breakStart;
 
-      final breakEnd=
+      final breakEnd =
           widget.employee.breakEnd;
 
-      final overlap=
-          startMinutes<breakEnd &&
-              endMinutes>breakStart;
+      final overlap =
+          startMinutes < breakEnd &&
+              endMinutes > breakStart;
 
-      if(overlap){
-        if(mounted){
+      if (overlap) {
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text(
@@ -332,21 +343,24 @@ class _EmployeeCalendarPageState
             ),
           );
         }
+
         await _loadDay();
         return;
       }
     }
 
     await controller.updateEvent(
-      event:event,
+      salonId: widget.employee.salonId,
+      event: event,
     );
 
     await _loadDay();
   }
+
   @override
   Widget build(BuildContext context) {
     final controller =
-        ref.watch(employeeCalendarControllerProvider);
+    ref.watch(employeeCalendarControllerProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -355,14 +369,13 @@ class _EmployeeCalendarPageState
         ),
       ),
       floatingActionButton:
-          FloatingActionButton.extended(
+      FloatingActionButton.extended(
         icon: const Icon(Icons.add),
         label: const Text('Nuovo evento'),
         onPressed: _createEvent,
       ),
       body: Column(
         children: [
-
           TableCalendar(
             firstDay: DateTime.utc(2024),
             lastDay: DateTime.utc(2035),
@@ -371,9 +384,9 @@ class _EmployeeCalendarPageState
                 isSameDay(day, _selectedDay),
             eventLoader: controller.eventsForDay,
             onDaySelected: (
-              selected,
-              focused,
-            ) async {
+                selected,
+                focused,
+                ) async {
               setState(() {
                 _selectedDay = selected;
               });
@@ -385,16 +398,16 @@ class _EmployeeCalendarPageState
             ),
             calendarBuilders: CalendarBuilders(
               markerBuilder: (
-                context,
-                day,
-                events,
-              ) {
+                  context,
+                  day,
+                  events,
+                  ) {
                 if (events.isEmpty) {
                   return const SizedBox();
                 }
 
                 final calendarEvents =
-                    events.cast<EmployeeCalendarModel>();
+                events.cast<EmployeeCalendarModel>();
 
                 return Positioned(
                   bottom: 3,
@@ -404,9 +417,9 @@ class _EmployeeCalendarPageState
                       calendarEvents.length > 3
                           ? 3
                           : calendarEvents.length,
-                      (index) {
+                          (index) {
                         final event =
-                            calendarEvents[index];
+                        calendarEvents[index];
 
                         Color color;
 
@@ -432,7 +445,7 @@ class _EmployeeCalendarPageState
                           width: 6,
                           height: 6,
                           margin:
-                              const EdgeInsets.symmetric(
+                          const EdgeInsets.symmetric(
                             horizontal: 1,
                           ),
                           decoration: BoxDecoration(
@@ -447,9 +460,7 @@ class _EmployeeCalendarPageState
               },
             ),
           ),
-
           const SizedBox(height: 8),
-
           const Padding(
             padding: EdgeInsets.symmetric(
               horizontal: 12,
@@ -481,15 +492,12 @@ class _EmployeeCalendarPageState
               ],
             ),
           ),
-
           const SizedBox(height: 8),
-
           Expanded(
             child: controller.loading
                 ? const Center(
-                    child:
-                        CircularProgressIndicator(),
-                  )
+              child: CircularProgressIndicator(),
+            )
                 : EmployeeTimeline(
               employee: widget.employee,
               events: controller.events,
@@ -522,8 +530,7 @@ class _LegendItem extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: color.withValues(alpha: .08),
-        borderRadius:
-            BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

@@ -43,7 +43,8 @@ class EmployeeCalendarController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<List<EmployeeCalendarModel>> getEventsByEmployeeAndDate({
+  Future<List<EmployeeCalendarModel>>
+  getEventsByEmployeeAndDate({
     required String salonId,
     required String employeeId,
     required DateTime date,

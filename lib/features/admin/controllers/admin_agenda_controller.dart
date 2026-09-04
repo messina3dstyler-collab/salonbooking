@@ -12,9 +12,9 @@ import '../services/admin_appointments_service.dart';
 
 class AdminAgendaController extends ChangeNotifier {
   AdminAgendaController(
-    this._appointmentsService,
-    this._calendarService,
-  );
+      this._appointmentsService,
+      this._calendarService,
+      );
 
   final AdminAppointmentsService _appointmentsService;
   final EmployeeCalendarService _calendarService;
@@ -23,17 +23,13 @@ class AdminAgendaController extends ChangeNotifier {
 
   final List<AdminAppointmentModel> _appointments = [];
 
-  final Map<String, List<EmployeeCalendarModel>>
-      _employeeEvents = {};
+  final Map<String, List<EmployeeCalendarModel>> _employeeEvents = {};
 
   StreamSubscription<List<AdminAppointmentModel>>?
-      _appointmentsSubscription;
+  _appointmentsSubscription;
 
-  final Map<
-      String,
-      StreamSubscription<
-          List<EmployeeCalendarModel>>>
-      _calendarSubscriptions = {};
+  final Map<String, StreamSubscription<List<EmployeeCalendarModel>>>
+  _calendarSubscriptions = {};
 
   bool _loading = false;
 
@@ -41,8 +37,7 @@ class AdminAgendaController extends ChangeNotifier {
 
   String? _error;
 
-  List<AdminAgendaItem> get items =>
-      List.unmodifiable(_items);
+  List<AdminAgendaItem> get items => List.unmodifiable(_items);
 
   bool get loading => _loading;
 
@@ -63,14 +58,13 @@ class AdminAgendaController extends ChangeNotifier {
 
     notifyListeners();
 
-    _appointmentsSubscription =
-        _appointmentsService
-            .watchAppointmentsByDate(
-              salonId: salonId,
-              date: day,
-            )
-            .listen(
-      (appointments) {
+    _appointmentsSubscription = _appointmentsService
+        .watchAppointmentsByDate(
+      salonId: salonId,
+      date: day,
+    )
+        .listen(
+          (appointments) {
         _appointments
           ..clear()
           ..addAll(appointments);
@@ -93,21 +87,17 @@ class AdminAgendaController extends ChangeNotifier {
     );
 
     for (final employee in employeeNames.entries) {
-      _calendarSubscriptions[employee.key] =
-          _calendarService
-              .watchEventsByEmployee(
-                employeeId: employee.key,
-              )
-              .listen(
-        (events) {
-          _employeeEvents[employee.key] =
-              events.where((event) {
-            return event.startDate.year ==
-                    day.year &&
-                event.startDate.month ==
-                    day.month &&
-                event.startDate.day ==
-                    day.day;
+      _calendarSubscriptions[employee.key] = _calendarService
+          .watchEventsByEmployee(
+        salonId: salonId,
+        employeeId: employee.key,
+      )
+          .listen(
+            (events) {
+          _employeeEvents[employee.key] = events.where((event) {
+            return event.startDate.year == day.year &&
+                event.startDate.month == day.month &&
+                event.startDate.day == day.day;
           }).toList();
 
           _rebuildAgenda(employeeNames);
@@ -138,8 +128,7 @@ class AdminAgendaController extends ChangeNotifier {
 
     _appointmentsSubscription = null;
 
-    for (final subscription
-        in _calendarSubscriptions.values) {
+    for (final subscription in _calendarSubscriptions.values) {
       await subscription.cancel();
     }
 
@@ -153,24 +142,24 @@ class AdminAgendaController extends ChangeNotifier {
 
     _started = false;
   }
+
   void _rebuildAgenda(
-    Map<String, String> employeeNames,
-  ) {
+      Map<String, String> employeeNames,
+      ) {
     _items.clear();
 
     _items.addAll(
       _appointments.map(
-        (e) => e.toAdminAgendaItem(),
+            (e) => e.toAdminAgendaItem(),
       ),
     );
 
     for (final employee in employeeNames.entries) {
-      final events =
-          _employeeEvents[employee.key] ?? const [];
+      final events = _employeeEvents[employee.key] ?? const [];
 
       _items.addAll(
         events.map(
-          (e) => e.toAdminAgendaItem(
+              (e) => e.toAdminAgendaItem(
             employeeName: employee.value,
           ),
         ),
@@ -178,7 +167,7 @@ class AdminAgendaController extends ChangeNotifier {
     }
 
     _items.sort(
-      (a, b) => a.start.compareTo(b.start),
+          (a, b) => a.start.compareTo(b.start),
     );
 
     notifyListeners();
@@ -199,20 +188,20 @@ class AdminAgendaController extends ChangeNotifier {
   }
 
   List<AdminAgendaItem> itemsForEmployee(
-    String employeeId,
-  ) {
+      String employeeId,
+      ) {
     return _items
         .where(
           (e) => e.employeeId == employeeId,
-        )
+    )
         .toList();
   }
 
   List<AdminAgendaItem> itemsForDay(
-    DateTime day,
-  ) {
+      DateTime day,
+      ) {
     return _items.where(
-      (e) {
+          (e) {
         return e.start.year == day.year &&
             e.start.month == day.month &&
             e.start.day == day.day;
@@ -225,7 +214,7 @@ class AdminAgendaController extends ChangeNotifier {
     required DateTime day,
   }) {
     return _items.where(
-      (e) {
+          (e) {
         return e.employeeId == employeeId &&
             e.start.year == day.year &&
             e.start.month == day.month &&
@@ -239,7 +228,7 @@ class AdminAgendaController extends ChangeNotifier {
     required DateTime end,
   }) {
     return _items.where(
-      (e) {
+          (e) {
         return e.start.isBefore(end) &&
             e.end.isAfter(start);
       },
@@ -247,24 +236,25 @@ class AdminAgendaController extends ChangeNotifier {
   }
 
   bool hasItemsForEmployee(
-    String employeeId,
-  ) {
+      String employeeId,
+      ) {
     return _items.any(
-      (e) => e.employeeId == employeeId,
+          (e) => e.employeeId == employeeId,
     );
   }
 
   AdminAgendaItem? byId(
-    String id,
-  ) {
+      String id,
+      ) {
     try {
       return _items.firstWhere(
-        (e) => e.id == id,
+            (e) => e.id == id,
       );
     } catch (_) {
       return null;
     }
   }
+
   @override
   void dispose() {
     _appointmentsSubscription?.cancel();

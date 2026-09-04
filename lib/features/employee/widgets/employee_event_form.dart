@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../models/employee_calendar_model.dart';
@@ -8,12 +7,14 @@ class EmployeeEventForm extends StatefulWidget {
   const EmployeeEventForm({
     super.key,
     required this.employeeId,
+    required this.salonId,
     this.event,
     required this.onSaved,
     required this.onCancel,
   });
 
   final String employeeId;
+  final String salonId;
   final EmployeeCalendarModel? event;
 
   final ValueChanged<EmployeeCalendarModel> onSaved;
@@ -29,19 +30,14 @@ class _EmployeeEventFormState
   final _formKey = GlobalKey<FormState>();
 
   late CalendarEventType _type;
-
   late DateTime _date;
-
   late TimeOfDay _start;
-
   late TimeOfDay _end;
 
   bool _allDay = false;
-
   bool _saving = false;
 
   late TextEditingController _titleController;
-
   late TextEditingController _noteController;
 
   @override
@@ -94,7 +90,6 @@ class _EmployeeEventFormState
       );
 
       _titleController = TextEditingController();
-
       _noteController = TextEditingController();
     }
   }
@@ -153,44 +148,6 @@ class _EmployeeEventFormState
     });
   }
 
-  Future<String?> _resolveSalonId() async {
-    final existingSalonId = widget.event?.salonId;
-
-    if (existingSalonId != null &&
-        existingSalonId.trim().isNotEmpty) {
-      return existingSalonId.trim();
-    }
-
-    final user = FirebaseAuth.instance.currentUser;
-
-    if (user == null) {
-      return null;
-    }
-
-    final snapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .get();
-
-    if (!snapshot.exists) {
-      return null;
-    }
-
-    final data = snapshot.data();
-
-    if (data == null) {
-      return null;
-    }
-
-    final salonId = data['salonId']?.toString().trim() ?? '';
-
-    if (salonId.isEmpty) {
-      return null;
-    }
-
-    return salonId;
-  }
-
   Future<void> _save() async {
     if (_saving) {
       return;
@@ -228,29 +185,23 @@ class _EmployeeEventFormState
       return;
     }
 
+    if (widget.salonId.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Impossibile determinare il salone dell\'evento.',
+          ),
+        ),
+      );
+
+      return;
+    }
+
     setState(() {
       _saving = true;
     });
 
     try {
-      final salonId = await _resolveSalonId();
-
-      if (salonId == null || salonId.isEmpty) {
-        if (!mounted) {
-          return;
-        }
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Impossibile determinare il salone dell\'evento.',
-            ),
-          ),
-        );
-
-        return;
-      }
-
       final model = EmployeeCalendarModel(
         id: widget.event?.id ??
             FirebaseFirestore.instance
@@ -258,7 +209,7 @@ class _EmployeeEventFormState
                 .doc()
                 .id,
         employeeId: widget.employeeId,
-        salonId: salonId,
+        salonId: widget.salonId.trim(),
         start: Timestamp.fromDate(
           startDate,
         ),
