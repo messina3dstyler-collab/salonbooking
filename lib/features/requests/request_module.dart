@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../appointment/appointment_module.dart';
 import 'datasource/firestore_request_datasource.dart';
 import 'mappers/appointment_request_mapper.dart';
 import 'mappers/request_timeline_mapper.dart';
@@ -12,7 +13,6 @@ import 'transactions/request_transaction_service.dart';
 import 'validators/request_creation_validator.dart';
 import 'validators/request_response_validator.dart';
 import 'validators/request_state_validator.dart';
-import '../appointment/appointment_module.dart';
 
 class RequestModule {
   RequestModule._();
@@ -28,36 +28,30 @@ class RequestModule {
   // MAPPERS
   //--------------------------------------------------
 
-  static const AppointmentRequestMapper
-  _requestMapper =
+  static const AppointmentRequestMapper _requestMapper =
   AppointmentRequestMapper();
 
-  static const RequestTimelineMapper
-  _timelineMapper =
+  static const RequestTimelineMapper _timelineMapper =
   RequestTimelineMapper();
 
   //--------------------------------------------------
   // VALIDATORS
   //--------------------------------------------------
 
-  static const RequestCreationValidator
-  _creationValidator =
+  static const RequestCreationValidator _creationValidator =
   RequestCreationValidator();
 
-  static const RequestResponseValidator
-  _responseValidator =
+  static const RequestResponseValidator _responseValidator =
   RequestResponseValidator();
 
-  static const RequestStateValidator
-  _stateValidator =
+  static const RequestStateValidator _stateValidator =
   RequestStateValidator();
 
   //--------------------------------------------------
   // DATASOURCE
   //--------------------------------------------------
 
-  static final FirestoreRequestDatasource
-  datasource =
+  static final FirestoreRequestDatasource datasource =
   FirestoreRequestDatasource(
     firestore: _firestore,
     requestMapper: _requestMapper,
@@ -82,11 +76,12 @@ class RequestModule {
   // WORKFLOW
   //--------------------------------------------------
 
-  static final RequestWorkflowService
-  workflow =
+  static final RequestWorkflowService workflow =
   RequestWorkflowServiceImpl(
     datasource: datasource,
     transaction: transaction,
+    appointmentRepository:
+    AppointmentModule.repository,
     creationValidator:
     _creationValidator,
     responseValidator:
@@ -99,8 +94,7 @@ class RequestModule {
   // REPOSITORY
   //--------------------------------------------------
 
-  static final AppointmentRequestRepository
-  repository =
+  static final AppointmentRequestRepository repository =
   AppointmentRequestRepositoryImpl(
     workflow: workflow,
   );

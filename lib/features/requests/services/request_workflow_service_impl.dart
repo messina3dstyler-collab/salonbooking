@@ -6,17 +6,21 @@ import '../transactions/request_transaction_service.dart';
 import '../validators/request_creation_validator.dart';
 import '../validators/request_response_validator.dart';
 import '../validators/request_state_validator.dart';
+import '../../appointment/models/appointment_model.dart';
+import '../../appointment/repositories/appointment_repository.dart';
 import 'request_workflow_service.dart';
 
 class RequestWorkflowServiceImpl implements RequestWorkflowService {
   RequestWorkflowServiceImpl({
     required AppointmentRequestDatasource datasource,
     required RequestTransactionService transaction,
+    required AppointmentRepository appointmentRepository,
     RequestCreationValidator? creationValidator,
     RequestResponseValidator? responseValidator,
     RequestStateValidator? stateValidator,
   })  : _datasource = datasource,
         _transaction = transaction,
+        _appointmentRepository = appointmentRepository,
         _creationValidator =
             creationValidator ?? const RequestCreationValidator(),
         _responseValidator =
@@ -26,6 +30,7 @@ class RequestWorkflowServiceImpl implements RequestWorkflowService {
 
   final AppointmentRequestDatasource _datasource;
   final RequestTransactionService _transaction;
+  final AppointmentRepository _appointmentRepository;
   final RequestCreationValidator _creationValidator;
   final RequestResponseValidator _responseValidator;
   final RequestStateValidator _stateValidator;
@@ -383,13 +388,24 @@ class RequestWorkflowServiceImpl implements RequestWorkflowService {
   Future<bool> canCreateRequest(
       String appointmentId,
       ) async {
-    // Al momento non modifichiamo questo metodo:
-    // con la firma attuale non è possibile verificare
-    // l'appuntamento senza introdurre una nuova dipendenza.
-    //
-    // La sicurezza reale della creazione passa già
-    // attraverso _create() e i relativi validator.
-    return true;
+    if (appointmentId.trim().isEmpty) {
+      return false;
+    }
+
+    try {
+      final AppointmentModel? appointment =
+      await _appointmentRepository.getAppointment(
+        appointmentId: appointmentId,
+      );
+
+      if (appointment == null) {
+        return false;
+      }
+
+      return appointment.isPending || appointment.isConfirmed;
+    } catch (_) {
+      return false;
+    }
   }
 
   @override
