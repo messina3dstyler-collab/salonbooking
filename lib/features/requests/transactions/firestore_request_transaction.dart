@@ -5,6 +5,8 @@ import '../mappers/appointment_request_mapper.dart';
 import '../mappers/request_timeline_mapper.dart';
 import '../models/appointment_request.dart';
 
+import 'operations/accept_request_operation.dart';
+import 'operations/archive_request_operation.dart';
 import 'operations/cancel_request_operation.dart';
 import 'operations/create_request_operation.dart';
 import 'operations/expire_request_operation.dart';
@@ -13,7 +15,6 @@ import 'operations/reminder_request_operation.dart';
 import 'operations/send_request_operation.dart';
 import 'request_transaction_context.dart';
 import 'request_transaction_service.dart';
-import 'operations/accept_request_operation.dart';
 import '../../appointment/services/appointment_request_service_base.dart';
 
 class FirestoreRequestTransaction
@@ -44,6 +45,7 @@ class FirestoreRequestTransaction
   final AppointmentRequestMapper _requestMapper;
 
   final RequestTimelineMapper _timelineMapper;
+
   final AppointmentRequestServiceBase
   _appointmentRequestService;
 
@@ -185,7 +187,9 @@ class FirestoreRequestTransaction
 
         await RejectRequestOperation(
           context,
-        ).execute(request);
+        ).execute(
+          request,
+        );
       },
     );
   }
@@ -211,7 +215,9 @@ class FirestoreRequestTransaction
 
         await CancelRequestOperation(
           context,
-        ).execute(request);
+        ).execute(
+          request,
+        );
       },
     );
   }
@@ -237,7 +243,9 @@ class FirestoreRequestTransaction
 
         await ExpireRequestOperation(
           context,
-        ).execute(request);
+        ).execute(
+          request,
+        );
       },
     );
   }
@@ -263,7 +271,9 @@ class FirestoreRequestTransaction
 
         await ReminderRequestOperation(
           context,
-        ).execute(request);
+        ).execute(
+          request,
+        );
       },
     );
   }
@@ -276,8 +286,23 @@ class FirestoreRequestTransaction
   Future<void> archiveRequest({
     required String requestId,
   }) async {
-    throw UnimplementedError(
-      "ArchiveRequestOperation non ancora implementata.",
+    await _firestore.runTransaction(
+          (transaction) async {
+        final context =
+        _context(transaction);
+
+        final request =
+        await _loadRequest(
+          context,
+          requestId,
+        );
+
+        await ArchiveRequestOperation(
+          context,
+        ).execute(
+          request,
+        );
+      },
     );
   }
 }

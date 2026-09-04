@@ -1,6 +1,7 @@
 import '../datasource/appointment_request_datasource.dart';
 import '../exceptions/request_validation_exception.dart';
 import '../models/appointment_request.dart';
+import '../models/request_timeline_event.dart';
 import '../transactions/request_transaction_service.dart';
 import '../validators/request_creation_validator.dart';
 import '../validators/request_response_validator.dart';
@@ -326,6 +327,55 @@ class RequestWorkflowServiceImpl implements RequestWorkflowService {
   }
 
   //--------------------------------------------------
+  // LETTURA
+  //--------------------------------------------------
+
+  @override
+  Future<AppointmentRequest?> getById(
+      String requestId,
+      ) {
+    return _datasource.getById(
+      requestId,
+    );
+  }
+
+  @override
+  Future<List<RequestTimelineEvent>> getTimeline(
+      String requestId,
+      ) {
+    return _datasource.getTimeline(
+      requestId,
+    );
+  }
+
+  @override
+  Stream<List<AppointmentRequest>> watchAppointmentRequests(
+      String appointmentId,
+      ) {
+    return _datasource.watchAppointmentRequests(
+      appointmentId,
+    );
+  }
+
+  @override
+  Stream<List<AppointmentRequest>> watchCustomerRequests(
+      String customerId,
+      ) {
+    return _datasource.watchCustomerRequests(
+      customerId,
+    );
+  }
+
+  @override
+  Stream<List<AppointmentRequest>> watchPendingRequests(
+      String salonId,
+      ) {
+    return _datasource.watchPendingRequests(
+      salonId,
+    );
+  }
+
+  //--------------------------------------------------
   // VALIDAZIONI
   //--------------------------------------------------
 
@@ -394,6 +444,29 @@ class RequestWorkflowServiceImpl implements RequestWorkflowService {
     } catch (_) {
       return false;
     }
+  }
+
+  //--------------------------------------------------
+  // ARCHIVIAZIONE
+  //--------------------------------------------------
+
+  @override
+  Future<void> archiveRequest(
+      String requestId,
+      ) async {
+    final request = await _loadRequest(
+      requestId,
+    );
+
+    if (!_stateValidator.canArchive(request)) {
+      throw const RequestValidationException(
+        "La richiesta non è ancora archiviabile.",
+      );
+    }
+
+    await _transaction.archiveRequest(
+      requestId: requestId,
+    );
   }
 
   //--------------------------------------------------

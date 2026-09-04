@@ -18,8 +18,7 @@ class AppointmentRequestRepositoryImpl
   //--------------------------------------------------
 
   @override
-  Future<AppointmentRequest>
-  createRescheduleRequest(
+  Future<AppointmentRequest> createRescheduleRequest(
       AppointmentRequest request,
       ) {
     return _workflow.createRescheduleRequest(
@@ -28,30 +27,25 @@ class AppointmentRequestRepositoryImpl
   }
 
   @override
-  Future<AppointmentRequest>
-  createEmployeeChangeRequest(
+  Future<AppointmentRequest> createEmployeeChangeRequest(
       AppointmentRequest request,
       ) {
-    return _workflow
-        .createEmployeeChangeRequest(
+    return _workflow.createEmployeeChangeRequest(
       request: request,
     );
   }
 
   @override
-  Future<AppointmentRequest>
-  createServicesChangeRequest(
+  Future<AppointmentRequest> createServicesChangeRequest(
       AppointmentRequest request,
       ) {
-    return _workflow
-        .createServicesChangeRequest(
+    return _workflow.createServicesChangeRequest(
       request: request,
     );
   }
 
   @override
-  Future<AppointmentRequest>
-  createCancelRequest(
+  Future<AppointmentRequest> createCancelRequest(
       AppointmentRequest request,
       ) {
     return _workflow.createCancelRequest(
@@ -60,8 +54,7 @@ class AppointmentRequestRepositoryImpl
   }
 
   @override
-  Future<AppointmentRequest>
-  createCustomRequest(
+  Future<AppointmentRequest> createCustomRequest(
       AppointmentRequest request,
       ) {
     return _workflow.createCustomRequest(
@@ -135,39 +128,45 @@ class AppointmentRequestRepositoryImpl
   Future<AppointmentRequest?> getById(
       String requestId,
       ) {
-    throw UnimplementedError();
+    return _workflow.getById(
+      requestId,
+    );
   }
 
   @override
-  Future<List<RequestTimelineEvent>>
-  getTimeline(
+  Future<List<RequestTimelineEvent>> getTimeline(
       String requestId,
       ) {
-    throw UnimplementedError();
+    return _workflow.getTimeline(
+      requestId,
+    );
   }
 
   @override
-  Stream<List<AppointmentRequest>>
-  watchAppointmentRequests(
+  Stream<List<AppointmentRequest>> watchAppointmentRequests(
       String appointmentId,
       ) {
-    throw UnimplementedError();
+    return _workflow.watchAppointmentRequests(
+      appointmentId,
+    );
   }
 
   @override
-  Stream<List<AppointmentRequest>>
-  watchCustomerRequests(
+  Stream<List<AppointmentRequest>> watchCustomerRequests(
       String customerId,
       ) {
-    throw UnimplementedError();
+    return _workflow.watchCustomerRequests(
+      customerId,
+    );
   }
 
   @override
-  Stream<List<AppointmentRequest>>
-  watchPendingRequests(
+  Stream<List<AppointmentRequest>> watchPendingRequests(
       String salonId,
       ) {
-    throw UnimplementedError();
+    return _workflow.watchPendingRequests(
+      salonId,
+    );
   }
 
   //--------------------------------------------------
@@ -178,6 +177,8 @@ class AppointmentRequestRepositoryImpl
   Future<void> archive(
       String requestId,
       ) {
-    throw UnimplementedError();
+    return _workflow.archiveRequest(
+      requestId,
+    );
   }
 }
