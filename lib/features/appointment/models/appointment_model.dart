@@ -1,5 +1,37 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+/// Stati ufficiali del ciclo di vita di un Appointment.
+///
+/// Manteniamo intenzionalmente le String per compatibilità con
+/// Firestore, Rules e codice esistente.
+abstract final class AppointmentStatus {
+  static const String pending = 'Prenotata';
+  static const String confirmed = 'Confermata';
+  static const String completed = 'Completata';
+  static const String cancelled = 'Annullata';
+
+  static const Set<String> values = <String>{
+    pending,
+    confirmed,
+    completed,
+    cancelled,
+  };
+
+  static bool isKnown(String status) {
+    return values.contains(
+      status.trim().toLowerCase() == pending.toLowerCase()
+          ? pending
+          : status.trim().toLowerCase() == confirmed.toLowerCase()
+          ? confirmed
+          : status.trim().toLowerCase() == completed.toLowerCase()
+          ? completed
+          : status.trim().toLowerCase() == cancelled.toLowerCase()
+          ? cancelled
+          : status,
+    );
+  }
+}
+
 class AppointmentModel {
   const AppointmentModel({
     required this.id,
@@ -29,16 +61,33 @@ class AppointmentModel {
     this.acceptedRequestId,
   });
 
+  // =========================================================
+  // IDENTITÀ
+  // =========================================================
+
   final String id;
 
   final String userId;
 
   final String salonId;
+
+  // =========================================================
+  // SALONE
+  // =========================================================
+
   final String salonName;
   final String salonAddress;
 
+  // =========================================================
+  // CLIENTE
+  // =========================================================
+
   final String customerName;
   final String customerPhone;
+
+  // =========================================================
+  // DIPENDENTE
+  // =========================================================
 
   final String employeeId;
   final String employeeName;
@@ -46,10 +95,18 @@ class AppointmentModel {
   final String employeeSpecialization;
   final double employeeRating;
 
+  // =========================================================
+  // SERVIZIO
+  // =========================================================
+
   final String serviceId;
   final String serviceName;
   final int serviceDuration;
   final double price;
+
+  // =========================================================
+  // APPUNTAMENTO
+  // =========================================================
 
   final int duration;
 
@@ -62,8 +119,16 @@ class AppointmentModel {
 
   final String notes;
 
+  // =========================================================
+  // RECENSIONE
+  // =========================================================
+
   final String? reviewId;
   final bool hasReview;
+
+  // =========================================================
+  // REQUEST INTEGRATION
+  // =========================================================
 
   /// ID della Request che ha prodotto l'ultimo aggiornamento
   /// accettato dell'appuntamento.
@@ -73,10 +138,22 @@ class AppointmentModel {
   /// Request -> Appointment.
   final String? acceptedRequestId;
 
+  // =========================================================
+  // FIRESTORE -> MODEL
+  // =========================================================
+
   factory AppointmentModel.fromMap(
       String id,
       Map<String, dynamic> json,
       ) {
+    final int parsedServiceDuration = _int(
+      json['serviceDuration'] ?? json['duration'],
+    );
+
+    final int parsedDuration = _int(
+      json['duration'] ?? json['serviceDuration'],
+    );
+
     return AppointmentModel(
       id: id,
 
@@ -99,13 +176,9 @@ class AppointmentModel {
       serviceId: json['serviceId']?.toString() ?? '',
       serviceName: json['serviceName']?.toString() ?? '',
 
-      serviceDuration: _int(
-        json['serviceDuration'] ?? json['duration'],
-      ),
+      serviceDuration: parsedServiceDuration,
 
-      duration: _int(
-        json['duration'] ?? json['serviceDuration'],
-      ),
+      duration: parsedDuration,
 
       price: _double(json['price']),
 
@@ -114,7 +187,7 @@ class AppointmentModel {
         fieldName: 'date',
       ),
 
-      status: json['status']?.toString() ?? 'Prenotata',
+      status: json['status']?.toString() ?? AppointmentStatus.pending,
 
       createdAt: _timestamp(
         json['createdAt'],
@@ -136,6 +209,10 @@ class AppointmentModel {
       json['acceptedRequestId']?.toString(),
     );
   }
+
+  // =========================================================
+  // MODEL -> FIRESTORE
+  // =========================================================
 
   Map<String, dynamic> toMap() {
     return {
@@ -178,6 +255,10 @@ class AppointmentModel {
     };
   }
 
+  // =========================================================
+  // COPY
+  // =========================================================
+
   AppointmentModel copyWith({
     String? status,
     Timestamp? updatedAt,
@@ -185,10 +266,35 @@ class AppointmentModel {
     String? reviewId,
     bool? hasReview,
     bool clearReview = false,
+
+    Timestamp? date,
+
+    String? employeeId,
+    String? employeeName,
+    String? employeePhone,
+    String? employeeSpecialization,
+    double? employeeRating,
+
+    String? serviceId,
+    String? serviceName,
+    int? serviceDuration,
+
     int? duration,
+
+    double? price,
+
     String? acceptedRequestId,
     bool clearAcceptedRequest = false,
   }) {
+    final int resolvedDuration =
+        duration ?? this.duration;
+
+    final int resolvedServiceDuration =
+        serviceDuration ??
+            (duration != null
+                ? resolvedDuration
+                : this.serviceDuration);
+
     return AppointmentModel(
       id: id,
 
@@ -201,21 +307,25 @@ class AppointmentModel {
       customerName: customerName,
       customerPhone: customerPhone,
 
-      employeeId: employeeId,
-      employeeName: employeeName,
-      employeePhone: employeePhone,
-      employeeSpecialization: employeeSpecialization,
-      employeeRating: employeeRating,
+      employeeId: employeeId ?? this.employeeId,
+      employeeName: employeeName ?? this.employeeName,
+      employeePhone:
+      employeePhone ?? this.employeePhone,
+      employeeSpecialization:
+      employeeSpecialization ??
+          this.employeeSpecialization,
+      employeeRating:
+      employeeRating ?? this.employeeRating,
 
-      serviceId: serviceId,
-      serviceName: serviceName,
-      serviceDuration: serviceDuration,
+      serviceId: serviceId ?? this.serviceId,
+      serviceName: serviceName ?? this.serviceName,
+      serviceDuration: resolvedServiceDuration,
 
-      duration: duration ?? this.duration,
+      duration: resolvedDuration,
 
-      price: price,
+      price: price ?? this.price,
 
-      date: date,
+      date: date ?? this.date,
 
       status: status ?? this.status,
 
@@ -232,9 +342,14 @@ class AppointmentModel {
 
       acceptedRequestId: clearAcceptedRequest
           ? null
-          : acceptedRequestId ?? this.acceptedRequestId,
+          : acceptedRequestId ??
+          this.acceptedRequestId,
     );
   }
+
+  // =========================================================
+  // DATE / TIME
+  // =========================================================
 
   DateTime get appointmentDate => date.toDate();
 
@@ -247,20 +362,40 @@ class AppointmentModel {
         ),
       );
 
+  // =========================================================
+  // STATUS
+  // =========================================================
+
   String get normalizedStatus =>
       status.trim().toLowerCase();
 
   bool get isPending =>
-      normalizedStatus == 'prenotata';
+      normalizedStatus ==
+          AppointmentStatus.pending.toLowerCase();
 
   bool get isConfirmed =>
-      normalizedStatus == 'confermata';
+      normalizedStatus ==
+          AppointmentStatus.confirmed.toLowerCase();
 
   bool get isCompleted =>
-      normalizedStatus == 'completata';
+      normalizedStatus ==
+          AppointmentStatus.completed.toLowerCase();
 
   bool get isCancelled =>
-      normalizedStatus == 'annullata';
+      normalizedStatus ==
+          AppointmentStatus.cancelled.toLowerCase();
+
+  bool get isFinal =>
+      isCompleted || isCancelled;
+
+  bool get isActive =>
+      isPending || isConfirmed;
+
+  bool get isKnownStatus =>
+      isPending ||
+          isConfirmed ||
+          isCompleted ||
+          isCancelled;
 
   String get displayStatus {
     switch (normalizedStatus) {
@@ -280,6 +415,42 @@ class AppointmentModel {
         return status;
     }
   }
+
+  // =========================================================
+  // DOMAIN VALIDATION HELPERS
+  // =========================================================
+
+  /// Verifica che gli identificativi fondamentali
+  /// dell'Appointment siano valorizzati.
+  ///
+  /// Non sostituisce le Firestore Rules.
+  bool get hasValidIdentity =>
+      id.trim().isNotEmpty &&
+          userId.trim().isNotEmpty &&
+          salonId.trim().isNotEmpty &&
+          employeeId.trim().isNotEmpty &&
+          serviceId.trim().isNotEmpty;
+
+  /// Verifica che i dati temporali siano utilizzabili.
+  ///
+  /// Non sostituisce il controllo di disponibilità
+  /// effettuato dal workflow di prenotazione.
+  bool get hasValidSchedule =>
+      duration > 0;
+
+  /// Verifica la struttura minima del documento Appointment.
+  ///
+  /// Non esegue controlli di ownership o appartenenza
+  /// employee/service -> salon: quelli appartengono
+  /// al dominio applicativo e alle Security Rules.
+  bool get isStructurallyValid =>
+      hasValidIdentity &&
+          hasValidSchedule &&
+          isKnownStatus;
+
+  // =========================================================
+  // FIRESTORE PARSING HELPERS
+  // =========================================================
 
   static Timestamp _timestamp(
       dynamic value, {

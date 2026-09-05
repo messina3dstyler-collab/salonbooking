@@ -30,13 +30,10 @@ class BookingPage extends ConsumerStatefulWidget {
   final EmployeeModel employee;
 
   @override
-  ConsumerState<BookingPage> createState() =>
-      _BookingPageState();
+  ConsumerState<BookingPage> createState() => _BookingPageState();
 }
 
-class _BookingPageState
-    extends ConsumerState<BookingPage> {
-
+class _BookingPageState extends ConsumerState<BookingPage> {
   DateTime? date;
   TimeOfDay? time;
 
@@ -49,11 +46,12 @@ class _BookingPageState
 
   bool get canBook =>
       date != null &&
-      time != null &&
-      !saving;
+          time != null &&
+          !saving;
 
   String format(TimeOfDay t) {
-    return '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+    return '${t.hour.toString().padLeft(2, '0')}:'
+        '${t.minute.toString().padLeft(2, '0')}';
   }
 
   String formatDate(DateTime d) {
@@ -64,11 +62,11 @@ class _BookingPageState
   }
 
   bool _overlap(
-    DateTime start1,
-    DateTime end1,
-    DateTime start2,
-    DateTime end2,
-  ) {
+      DateTime start1,
+      DateTime end1,
+      DateTime start2,
+      DateTime end2,
+      ) {
     return start1.isBefore(end2) &&
         end1.isAfter(start2);
   }
@@ -79,11 +77,14 @@ class _BookingPageState
   }
 
   Future<void> pickDate() async {
-
     DateTime firstAvailable = DateTime.now();
 
-    while (!widget.employee.workingDays.contains(firstAvailable.weekday)) {
-      firstAvailable = firstAvailable.add(const Duration(days: 1));
+    while (!widget.employee.workingDays.contains(
+      firstAvailable.weekday,
+    )) {
+      firstAvailable = firstAvailable.add(
+        const Duration(days: 1),
+      );
     }
 
     final picked = await showDatePicker(
@@ -95,9 +96,9 @@ class _BookingPageState
       ),
       locale: const Locale('it', 'IT'),
       selectableDayPredicate: (day) {
-
-        return widget.employee.workingDays.contains(day.weekday);
-
+        return widget.employee.workingDays.contains(
+          day.weekday,
+        );
       },
     );
 
@@ -112,37 +113,42 @@ class _BookingPageState
   }
 
   Future<void> _generateAvailableSlots() async {
-
     if (date == null) {
       return;
     }
-    print("STEP 0 - inizio _generateAvailableSlots");
+
+    print(
+      'STEP 0 - inizio _generateAvailableSlots',
+    );
 
     setState(() {
       loadingTimes = true;
       availableTimes = [];
     });
 
-    final appointmentController =
-        ref.read(
+    final appointmentController = ref.read(
       appointmentControllerProvider,
     );
 
-    final calendarController =
-        ref.read(
+    final calendarController = ref.read(
       employeeCalendarControllerProvider,
     );
-    print("STEP 1 - carico appuntamenti");
+
+    print('STEP 1 - carico appuntamenti');
 
     final appointments =
-        await appointmentController
-            .getEmployeeAppointmentsByDate(
+    await appointmentController
+        .getEmployeeAppointmentsByDate(
       employeeId: widget.employee.id,
       date: date!,
     );
-    print("STEP 2 - appuntamenti caricati: ${appointments.length}");
 
-    print("STEP 3 - carico calendario");
+    print(
+      'STEP 2 - appuntamenti caricati: '
+          '${appointments.length}',
+    );
+
+    print('STEP 3 - carico calendario');
 
     await calendarController.loadEvents(
       salonId: widget.salon.id,
@@ -150,10 +156,15 @@ class _BookingPageState
       date: date!,
     );
 
-    print("STEP 4 - calendario caricato");
-    print("STEP 5 - eventi: ${calendarController.events.length}");
+    print('STEP 4 - calendario caricato');
+
+    print(
+      'STEP 5 - eventi: '
+          '${calendarController.events.length}',
+    );
 
     final slots = <TimeOfDay>[];
+
     final firstHour = widget.employee.startHour;
     final lastHour = widget.employee.endHour;
 
@@ -162,13 +173,11 @@ class _BookingPageState
     hour < lastHour;
     hour++
     ) {
-
       for (
-        int minute = 0;
-        minute < 60;
-        minute += slotInterval
+      int minute = 0;
+      minute < 60;
+      minute += slotInterval
       ) {
-
         final slotStart = DateTime(
           date!.year,
           date!.month,
@@ -193,15 +202,20 @@ class _BookingPageState
         if (slotEnd.isAfter(closing)) {
           continue;
         }
+
         final slotMinutes =
-            slotStart.hour * 60 + slotStart.minute;
+            slotStart.hour * 60 +
+                slotStart.minute;
 
         final slotEndMinutes =
-            slotEnd.hour * 60 + slotEnd.minute;
+            slotEnd.hour * 60 +
+                slotEnd.minute;
 
         if (widget.employee.hasBreak) {
-          if (slotMinutes < widget.employee.breakEnd &&
-              slotEndMinutes > widget.employee.breakStart) {
+          if (slotMinutes <
+              widget.employee.breakEnd &&
+              slotEndMinutes >
+                  widget.employee.breakStart) {
             continue;
           }
         }
@@ -213,7 +227,6 @@ class _BookingPageState
         // ===========================
 
         for (final appointment in appointments) {
-
           if (appointment.isCancelled) {
             continue;
           }
@@ -222,7 +235,7 @@ class _BookingPageState
               appointment.appointmentDate;
 
           final bookingEnd =
-              bookingStart.add(
+          bookingStart.add(
             Duration(
               minutes: appointment.duration,
             ),
@@ -234,12 +247,9 @@ class _BookingPageState
             bookingStart,
             bookingEnd,
           )) {
-
             busy = true;
             break;
-
           }
-
         }
 
         if (busy) {
@@ -260,20 +270,14 @@ class _BookingPageState
         }
 
         if (!busy) {
-
           slots.add(
-
             TimeOfDay(
               hour: hour,
               minute: minute,
             ),
-
           );
-
         }
-
       }
-
     }
 
     if (!mounted) {
@@ -281,406 +285,265 @@ class _BookingPageState
     }
 
     setState(() {
-      print("STEP 6 - slot disponibili: ${slots.length}");
+      print(
+        'STEP 6 - slot disponibili: '
+            '${slots.length}',
+      );
 
       availableTimes = slots;
       loadingTimes = false;
-
     });
   }
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
-
       appBar: AppBar(
         title: const Text(
           'Conferma prenotazione',
         ),
       ),
-
       body: ListView(
-
         padding: const EdgeInsets.all(20),
-
         children: [
-
           Card(
-
             elevation: 1,
-
             child: Padding(
-
               padding: const EdgeInsets.all(18),
-
               child: Column(
-
                 crossAxisAlignment:
-                    CrossAxisAlignment.start,
-
+                CrossAxisAlignment.start,
                 children: [
-
                   Row(
-
                     children: [
-
                       CircleAvatar(
-
                         radius: 28,
-
                         backgroundImage:
-                            widget.employee.photoUrl.isEmpty
-                                ? null
-                                : NetworkImage(
-                                    widget.employee.photoUrl,
-                                  ),
-
+                        widget.employee.photoUrl.isEmpty
+                            ? null
+                            : NetworkImage(
+                          widget.employee.photoUrl,
+                        ),
                         child:
-                            widget.employee.photoUrl.isEmpty
-                                ? Text(
-                                    widget.employee.name[0]
-                                        .toUpperCase(),
-                                  )
-                                : null,
-
+                        widget.employee.photoUrl.isEmpty
+                            ? Text(
+                          widget.employee.name[0]
+                              .toUpperCase(),
+                        )
+                            : null,
                       ),
-
                       const SizedBox(width: 14),
-
                       Expanded(
-
                         child: Column(
-
                           crossAxisAlignment:
-                              CrossAxisAlignment.start,
-
+                          CrossAxisAlignment.start,
                           children: [
-
                             Text(
-
                               widget.employee.name,
-
                               style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight:
-                                    FontWeight.bold,
+                                FontWeight.bold,
                               ),
-
                             ),
-
                             Text(
-
                               widget.employee.specialization,
-
                               style: const TextStyle(
                                 color: Colors.grey,
                               ),
-
                             ),
-
                           ],
-
                         ),
-
                       ),
-
                     ],
-
                   ),
-
                   const Divider(height: 32),
                   _row(
                     Icons.store,
                     widget.salon.name,
                   ),
-
                   _row(
                     Icons.content_cut,
                     widget.service.name,
                   ),
-
                   _row(
                     Icons.schedule,
                     '${widget.service.duration} min',
                   ),
-
                   _row(
                     Icons.euro,
                     '€ ${widget.service.price.toStringAsFixed(2)}',
                   ),
-
                 ],
-
               ),
-
             ),
-
           ),
-
           const SizedBox(height: 24),
-
           Card(
-
             child: ListTile(
-
               leading: const Icon(
                 Icons.calendar_month,
               ),
-
               title: const Text(
                 'Data',
               ),
-
               subtitle: Text(
-
                 date == null
                     ? 'Seleziona una data'
                     : formatDate(date!),
-
               ),
-
               trailing: const Icon(
                 Icons.chevron_right,
               ),
-
               onTap: saving
                   ? null
                   : pickDate,
-
             ),
-
           ),
-
           const SizedBox(height: 24),
-
           const Text(
-
             'Orari disponibili',
-
             style: TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.bold,
             ),
-
           ),
-
           const SizedBox(height: 12),
-
           if (date == null)
-
             const Card(
-
               child: Padding(
-
                 padding: EdgeInsets.all(16),
-
                 child: Text(
                   'Seleziona prima una data.',
                 ),
-
               ),
-
             )
-
           else if (loadingTimes)
-
             const Padding(
-
               padding: EdgeInsets.symmetric(
                 vertical: 24,
               ),
-
               child: Center(
                 child: CircularProgressIndicator(),
               ),
-
             )
-
           else if (availableTimes.isEmpty)
-
-            Card(
-
-              color: Colors.orange.shade50,
-
-              child: const Padding(
-
-                padding: EdgeInsets.all(16),
-
-                child: Text(
-                  'Nessun orario disponibile per questa giornata.',
+              Card(
+                color: Colors.orange.shade50,
+                child: const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Text(
+                    'Nessun orario disponibile '
+                        'per questa giornata.',
+                  ),
                 ),
-
+              )
+            else
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: availableTimes.map(
+                      (slot) {
+                    return ChoiceChip(
+                      label: Text(
+                        format(slot),
+                      ),
+                      selected: time == slot,
+                      onSelected: saving
+                          ? null
+                          : (_) {
+                        setState(() {
+                          time = slot;
+                        });
+                      },
+                    );
+                  },
+                ).toList(),
               ),
-
-            )
-
-          else
-
-            Wrap(
-
-              spacing: 8,
-
-              runSpacing: 8,
-
-              children: availableTimes.map(
-
-                (slot) {
-
-                  return ChoiceChip(
-
-                    label: Text(
-                      format(slot),
-                    ),
-
-                    selected: time == slot,
-
-                    onSelected: saving
-                        ? null
-                        : (_) {
-
-                            setState(() {
-                              time = slot;
-                            });
-
-                          },
-
-                  );
-
-                },
-
-              ).toList(),
-
-            ),
-
           const SizedBox(height: 28),
-
           Card(
-
             color: Colors.blue.shade50,
-
             child: Padding(
-
               padding: const EdgeInsets.all(16),
-
               child: Column(
-
                 crossAxisAlignment:
-                    CrossAxisAlignment.start,
-
+                CrossAxisAlignment.start,
                 children: [
-
                   const Text(
-
                     'Riepilogo',
-
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                     ),
-
                   ),
-
                   const SizedBox(height: 10),
-
                   Text(widget.salon.name),
-
                   Text(widget.employee.name),
-
                   Text(widget.service.name),
-
                   Text(
-                    'Durata ${widget.service.duration} min',
+                    'Durata '
+                        '${widget.service.duration} min',
                   ),
-
                   if (date != null)
                     Text(
                       formatDate(date!),
                     ),
-
                   if (time != null)
                     Text(
                       format(time!),
                     ),
-
                   const SizedBox(height: 8),
-
                   Text(
-
-                    'Totale € ${widget.service.price.toStringAsFixed(2)}',
-
+                    'Totale € '
+                        '${widget.service.price.toStringAsFixed(2)}',
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                     ),
-
                   ),
-
                 ],
-
               ),
-
             ),
-
           ),
-
           const SizedBox(height: 30),
-
           SizedBox(
-
             height: 54,
-
             child: ElevatedButton.icon(
-
               onPressed: canBook
                   ? save
                   : null,
-
               icon: saving
-
                   ? const SizedBox(
-
-                      width: 18,
-                      height: 18,
-
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-
-                    )
-
+                width: 18,
+                height: 18,
+                child:
+                CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
                   : const Icon(
-                      Icons.check_circle,
-                    ),
-
+                Icons.check_circle,
+              ),
               label: Text(
-
                 saving
                     ? 'Salvataggio...'
                     : 'Conferma prenotazione',
-
               ),
-
             ),
-
           ),
-
           const SizedBox(height: 30),
-
         ],
-
       ),
-
     );
-
   }
-  Future<void> save() async {
 
+  Future<void> save() async {
     if (!canBook) {
       msg('Seleziona data e orario');
       return;
     }
 
-    final user = FirebaseAuth.instance.currentUser;
+    final user =
+        FirebaseAuth.instance.currentUser;
 
     if (user == null) {
       msg('Login richiesto');
@@ -692,247 +555,233 @@ class _BookingPageState
     });
 
     try {
-
+      // ==========================================
       // Ricontrollo disponibilità
+      // ==========================================
+
       await _generateAvailableSlots();
 
-      final stillAvailable = availableTimes.any(
-        (slot) =>
-            slot.hour == time!.hour &&
-            slot.minute == time!.minute,
+      final selectedTime = time;
+
+      if (selectedTime == null) {
+        msg(
+          'Seleziona un orario disponibile.',
+        );
+        return;
+      }
+
+      final stillAvailable =
+      availableTimes.any(
+            (slot) =>
+        slot.hour == selectedTime.hour &&
+            slot.minute == selectedTime.minute,
       );
 
       if (!stillAvailable) {
-
         msg(
           'Questo orario non è più disponibile.',
         );
 
-        setState(() {
-          saving = false;
-          time = null;
-        });
+        if (mounted) {
+          setState(() {
+            time = null;
+          });
+        }
 
         return;
       }
+
+      // ==========================================
+      // Creazione ID Appointment
+      // ==========================================
 
       final id = FirebaseFirestore.instance
           .collection('appointments')
           .doc()
           .id;
 
+      // ==========================================
+      // Costruzione Appointment
+      // ==========================================
+
+      final appointmentDate = DateTime(
+        date!.year,
+        date!.month,
+        date!.day,
+        selectedTime.hour,
+        selectedTime.minute,
+      );
+
+      final now = Timestamp.now();
+
       final appointment = AppointmentModel(
         id: id,
-
         userId: user.uid,
-
         salonId: widget.salon.id,
         salonName: widget.salon.name,
         salonAddress: widget.salon.address,
-
-        customerName: user.displayName ?? '',
-        customerPhone: user.phoneNumber ?? '',
-
+        customerName:
+        user.displayName ?? '',
+        customerPhone:
+        user.phoneNumber ?? '',
         employeeId: widget.employee.id,
-        employeeName: widget.employee.name,
-        employeePhone: widget.employee.phone,
-        employeeSpecialization: widget.employee.specialization,
-        employeeRating: widget.employee.rating,
-
+        employeeName:
+        widget.employee.name,
+        employeePhone:
+        widget.employee.phone,
+        employeeSpecialization:
+        widget.employee.specialization,
+        employeeRating:
+        widget.employee.rating,
         serviceId: widget.service.id,
-        serviceName: widget.service.name,
-        serviceDuration: widget.service.duration,
-        duration: widget.service.duration,
-        price: widget.service.price,
-
+        serviceName:
+        widget.service.name,
+        serviceDuration:
+        widget.service.duration,
+        duration:
+        widget.service.duration,
+        price:
+        widget.service.price,
         date: Timestamp.fromDate(
-          DateTime(
-            date!.year,
-            date!.month,
-            date!.day,
-            time!.hour,
-            time!.minute,
-          ),
+          appointmentDate,
         ),
-
-        status: 'Prenotata',
-
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now(),
-
+        status:
+        AppointmentStatus.pending,
+        createdAt: now,
+        updatedAt: now,
         notes: '',
       );
 
+      // ==========================================
+      // CREAZIONE ATOMICA
+      //
+      // Appointment + appointment_slots
+      // vengono creati nella stessa Transaction.
+      //
+      // Se uno degli slot è già occupato,
+      // l'intera operazione fallisce.
+      // ==========================================
+
       await ref
           .read(
-            appointmentControllerProvider,
-          )
-          .createAppointment(
-            appointment,
-          );
+        appointmentControllerProvider,
+      )
+          .createAppointmentAtomically(
+        appointment,
+      );
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       _successDialog();
-
     } catch (e, s) {
-
-      print("===== SAVE ERROR =====");
+      print('===== SAVE ERROR =====');
       print(e);
       print(s);
 
-      msg("Errore: $e");
+      if (!mounted) {
+        return;
+      }
 
+      msg(
+        'Errore durante la prenotazione: $e',
+      );
     } finally {
-
       if (mounted) {
-
         setState(() {
           saving = false;
         });
-
       }
-
     }
-
   }
 
   void _successDialog() {
-
     showDialog(
-
       context: context,
-
       barrierDismissible: false,
-
       builder: (_) => AlertDialog(
-
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius:
+          BorderRadius.circular(18),
         ),
-
         title: const Text(
           'Prenotazione confermata 🎉',
         ),
-
         content: Column(
-
           mainAxisSize: MainAxisSize.min,
-
           crossAxisAlignment:
-              CrossAxisAlignment.start,
-
+          CrossAxisAlignment.start,
           children: [
-
             Text(widget.salon.name),
-
             Text(widget.employee.name),
-
             Text(widget.service.name),
-
             const SizedBox(height: 10),
-
             Text(
               formatDate(date!),
             ),
-
             Text(
               format(time!),
             ),
-
           ],
-
         ),
-
         actions: [
-
           TextButton(
-
             onPressed: () {
-
-              Navigator.of(context)
-                  .popUntil(
-                (r) => r.isFirst,
+              Navigator.of(context).popUntil(
+                    (r) => r.isFirst,
               );
-
             },
-
-            child: const Text('Home'),
-
+            child: const Text(
+              'Home',
+            ),
           ),
-
           FilledButton(
-
             onPressed: () {
-
               Navigator.pop(context);
-
               context.go(
                 AppRoutes.appointments,
               );
-
             },
-
             child: const Text(
               'I miei appuntamenti',
             ),
-
           ),
-
         ],
-
       ),
-
     );
-
   }
 
   Widget _row(
-    IconData icon,
-    String text,
-  ) {
-
+      IconData icon,
+      String text,
+      ) {
     return Padding(
-
       padding: const EdgeInsets.only(
         bottom: 10,
       ),
-
       child: Row(
-
         children: [
-
           Icon(
             icon,
             size: 18,
             color: Colors.grey,
           ),
-
           const SizedBox(width: 10),
-
           Expanded(
             child: Text(text),
           ),
-
         ],
-
       ),
-
     );
-
   }
 
   void msg(String text) {
-
     ScaffoldMessenger.of(context)
         .showSnackBar(
-
       SnackBar(
         content: Text(text),
       ),
-
     );
-
   }
-
 }

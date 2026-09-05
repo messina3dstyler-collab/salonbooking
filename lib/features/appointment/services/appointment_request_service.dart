@@ -100,7 +100,7 @@ class AppointmentRequestService
       );
     }
 
-    await _repository.patchAppointment(
+    await _repository.patchAppointmentAtomically(
       appointmentId: request.appointmentId,
       transaction: transaction,
       changes: _withAcceptedRequest(
@@ -134,7 +134,7 @@ class AppointmentRequestService
       );
     }
 
-    await _repository.patchAppointment(
+    await _repository.patchAppointmentAtomically(
       appointmentId: request.appointmentId,
       transaction: transaction,
       changes: _withAcceptedRequest(
@@ -154,25 +154,49 @@ class AppointmentRequestService
       AppointmentRequest request,
       Transaction transaction,
       ) async {
-    final serviceId =
-        request.payload['newServiceId'] ??
-            request.payload['serviceId'];
+    final payload = request.servicesPayload;
 
-    if (serviceId == null ||
-        serviceId.toString().trim().isEmpty) {
+    if (payload.newServiceIds.length != 1) {
       throw StateError(
-        "La Request '${request.id}' non contiene "
-            "un nuovo serviceId.",
+        "La Request '${request.id}' deve contenere "
+            "esattamente un nuovo servizio.",
       );
     }
 
-    await _repository.patchAppointment(
+    if (payload.newDuration <= 0) {
+      throw StateError(
+        "La Request '${request.id}' contiene una "
+            "durata non valida.",
+      );
+    }
+
+    if (payload.newTotalPrice < 0) {
+      throw StateError(
+        "La Request '${request.id}' contiene un "
+            "prezzo non valido.",
+      );
+    }
+
+    final newServiceId =
+    payload.newServiceIds.first.trim();
+
+    if (newServiceId.isEmpty) {
+      throw StateError(
+        "La Request '${request.id}' non contiene "
+            "un nuovo serviceId valido.",
+      );
+    }
+
+    await _repository.patchAppointmentAtomically(
       appointmentId: request.appointmentId,
       transaction: transaction,
       changes: _withAcceptedRequest(
         request,
         {
-          'serviceId': serviceId.toString().trim(),
+          'serviceId': newServiceId,
+          'duration': payload.newDuration,
+          'serviceDuration': payload.newDuration,
+          'price': payload.newTotalPrice,
         },
       ),
     );
@@ -186,7 +210,7 @@ class AppointmentRequestService
       AppointmentRequest request,
       Transaction transaction,
       ) async {
-    await _repository.patchAppointment(
+    await _repository.patchAppointmentAtomically(
       appointmentId: request.appointmentId,
       transaction: transaction,
       changes: _withAcceptedRequest(
@@ -206,7 +230,7 @@ class AppointmentRequestService
       AppointmentRequest request,
       Transaction transaction,
       ) async {
-    await _repository.patchAppointment(
+    await _repository.patchAppointmentAtomically(
       appointmentId: request.appointmentId,
       transaction: transaction,
       changes: _withAcceptedRequest(

@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -16,30 +15,64 @@ class AppointmentController extends ChangeNotifier {
   String? _salonId;
 
   List<AppointmentModel> get appointments => _appointments;
+
   bool get isLoading => _isLoading;
+
   String? get error => _error;
+
   bool get hasAppointments => _appointments.isNotEmpty;
 
-  void setSalonId(String? salonId) {
-    if (_salonId == salonId) return;
+  String? get salonId => _salonId;
 
-    _salonId = salonId;
+  // ==================================================
+  // CONTESTO SALONE
+  // ==================================================
+
+  void setSalonId(String? salonId) {
+    final normalizedSalonId = salonId?.trim();
+
+    if (_salonId == normalizedSalonId) {
+      return;
+    }
+
+    _salonId = normalizedSalonId;
+
     notifyListeners();
-    loadAppointments();
+
+    if (_salonId != null && _salonId!.isNotEmpty) {
+      loadAppointmentsBySalon(
+        _salonId!,
+      );
+    }
   }
 
   void clearSalon() {
+    if (_salonId == null) {
+      return;
+    }
+
     _salonId = null;
     notifyListeners();
   }
 
-  Future<void> refresh() => loadAppointments();
+  // ==================================================
+  // REFRESH
+  // ==================================================
+
+  Future<void> refresh() {
+    return loadAppointments();
+  }
+
+  // ==================================================
+  // CLIENTE
+  // ==================================================
 
   Future<void> loadAppointments() async {
     final user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
       _appointments = [];
+      _error = null;
       notifyListeners();
       return;
     }
@@ -51,6 +84,7 @@ class AppointmentController extends ChangeNotifier {
       _appointments = await _service.getAppointmentsByUser(
         userId: user.uid,
       );
+
       notifyListeners();
     } catch (e) {
       _error = e.toString();
@@ -65,16 +99,22 @@ class AppointmentController extends ChangeNotifier {
   }) async {
     final user = FirebaseAuth.instance.currentUser;
 
-    if (user == null) return;
+    if (user == null) {
+      _appointments = [];
+      notifyListeners();
+      return;
+    }
 
     _setLoading(true);
     _error = null;
 
     try {
-      _appointments = await _service.getAppointmentsByUserAndDate(
+      _appointments =
+      await _service.getAppointmentsByUserAndDate(
         userId: user.uid,
         date: date,
       );
+
       notifyListeners();
     } catch (e) {
       _error = e.toString();
@@ -84,49 +124,142 @@ class AppointmentController extends ChangeNotifier {
     }
   }
 
-  Future<void> createAppointment(AppointmentModel appointment) async {
+  // ==================================================
+  // CREAZIONE
+  // ==================================================
+
+  /// Crea un Appointment usando la reservation atomica
+  /// degli slot temporali.
+  ///
+  /// Questa è l'operazione da utilizzare per il normale
+  /// flusso di prenotazione cliente.
+  Future<void> createAppointmentAtomically(
+      AppointmentModel appointment,
+      ) async {
+    _setLoading(true);
+    _error = null;
+
+    try {
+      await _service.createAppointmentAtomically(
+        appointment: appointment,
+      );
+
+      await _reloadCurrentUserAppointments();
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      rethrow;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// Creazione semplice dell'Appointment.
+  ///
+  /// Rimane disponibile per i flussi esistenti che non
+  /// utilizzano la reservation atomica.
+  Future<void> createAppointment(
+      AppointmentModel appointment,
+      ) async {
+    _setLoading(true);
+    _error = null;
+
     try {
       await _service.createAppointment(
         appointment: appointment,
       );
 
-      _appointments = [..._appointments, appointment];
-      notifyListeners();
+      await _reloadCurrentUserAppointments();
     } catch (e) {
       _error = e.toString();
       notifyListeners();
+    } finally {
+      _setLoading(false);
     }
   }
 
-  Future<void> cancelAppointment(String id) async {
+  // ==================================================
+  // AGGIORNAMENTO ATOMICO
+  // ==================================================
+
+  /// Aggiorna un Appointment e i relativi slot
+  /// in modo atomico.
+  ///
+  /// Viene utilizzato per:
+  ///
+  /// - cambio data/ora;
+  /// - cambio dipendente;
+  /// - cambio servizio;
+  /// - cambio durata;
+  /// - cambio stato;
+  /// - liberazione dei vecchi slot;
+  /// - prenotazione dei nuovi slot.
+  Future<void> updateAppointmentAtomically(
+      AppointmentModel appointment,
+      ) async {
+    _setLoading(true);
+    _error = null;
+
+    try {
+      await _service.updateAppointmentAtomically(
+        appointment: appointment,
+      );
+
+      await _reloadCurrentUserAppointments();
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      rethrow;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  // ==================================================
+  // CANCELLAZIONE
+  // ==================================================
+
+  Future<void> cancelAppointment(
+      String id,
+      ) async {
+    if (id.trim().isEmpty) {
+      _error = 'ID appuntamento non valido.';
+      notifyListeners();
+      return;
+    }
+
+    _setLoading(true);
+    _error = null;
+
     try {
       await _service.cancelAppointment(
         appointmentId: id,
       );
 
-      final index = _appointments.indexWhere(
-            (a) => a.id == id,
-      );
-
-      if (index != -1) {
-        _appointments[index] = _appointments[index].copyWith(
-          status: 'Annullata',
-          updatedAt: Timestamp.now(),
-        );
-      }
-
-      notifyListeners();
+      await _reloadCurrentUserAppointments();
     } catch (e) {
       _error = e.toString();
       notifyListeners();
+    } finally {
+      _setLoading(false);
     }
   }
 
-  Future<AppointmentModel?> getAppointment(String id) {
+  // ==================================================
+  // READ
+  // ==================================================
+
+  Future<AppointmentModel?> getAppointment(
+      String id,
+      ) {
     return _service.getAppointment(
       appointmentId: id,
     );
   }
+
+  // ==================================================
+  // SALONE
+  // ==================================================
 
   Future<List<AppointmentModel>> getAppointmentsBySalon(
       String salonId,
@@ -136,6 +269,37 @@ class AppointmentController extends ChangeNotifier {
     );
   }
 
+  Future<void> loadAppointmentsBySalon(
+      String salonId,
+      ) async {
+    if (salonId.trim().isEmpty) {
+      _appointments = [];
+      _error = 'ID salone non valido.';
+      notifyListeners();
+      return;
+    }
+
+    _setLoading(true);
+    _error = null;
+
+    try {
+      _appointments = await _service.getAppointmentsBySalon(
+        salonId: salonId,
+      );
+
+      notifyListeners();
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  // ==================================================
+  // DIPENDENTE
+  // ==================================================
+
   Future<List<AppointmentModel>> getAppointmentsByEmployee(
       String employeeId,
       ) {
@@ -144,7 +308,8 @@ class AppointmentController extends ChangeNotifier {
     );
   }
 
-  Future<List<AppointmentModel>> getEmployeeAppointmentsByDate({
+  Future<List<AppointmentModel>>
+  getEmployeeAppointmentsByDate({
     required String employeeId,
     required DateTime date,
   }) {
@@ -154,7 +319,12 @@ class AppointmentController extends ChangeNotifier {
     );
   }
 
-  Future<List<AppointmentModel>> getAppointmentsBySalonAndDate(
+  // ==================================================
+  // SALONE + DATA
+  // ==================================================
+
+  Future<List<AppointmentModel>>
+  getAppointmentsBySalonAndDate(
       String salonId,
       DateTime date,
       ) {
@@ -164,7 +334,12 @@ class AppointmentController extends ChangeNotifier {
     );
   }
 
-  Future<List<AppointmentModel>> getAppointmentsByUserAndDate(
+  // ==================================================
+  // CLIENTE + DATA
+  // ==================================================
+
+  Future<List<AppointmentModel>>
+  getAppointmentsByUserAndDate(
       String userId,
       DateTime date,
       ) {
@@ -174,18 +349,52 @@ class AppointmentController extends ChangeNotifier {
     );
   }
 
-  void setAppointments(List<AppointmentModel> value) {
-    _appointments = value;
+  // ==================================================
+  // STATO LOCALE
+  // ==================================================
+
+  void setAppointments(
+      List<AppointmentModel> value,
+      ) {
+    _appointments = List<AppointmentModel>.from(value);
     notifyListeners();
   }
 
   void clearError() {
+    if (_error == null) {
+      return;
+    }
+
     _error = null;
     notifyListeners();
   }
 
-  void _setLoading(bool value) {
-    if (_isLoading == value) return;
+  // ==================================================
+  // INTERNAL
+  // ==================================================
+
+  Future<void> _reloadCurrentUserAppointments() async {
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      _appointments = [];
+      notifyListeners();
+      return;
+    }
+
+    _appointments = await _service.getAppointmentsByUser(
+      userId: user.uid,
+    );
+
+    notifyListeners();
+  }
+
+  void _setLoading(
+      bool value,
+      ) {
+    if (_isLoading == value) {
+      return;
+    }
 
     _isLoading = value;
     notifyListeners();
