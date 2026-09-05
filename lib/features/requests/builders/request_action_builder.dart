@@ -10,6 +10,26 @@ class RequestActionBuilder {
   static RequestActions build(
       AppointmentRequest request,
       ) {
+    // ----------------------------------------------------------
+    // ARCHIVIATA
+    // ----------------------------------------------------------
+    //
+    // Una richiesta archiviata viene conservata come storico.
+    // Non deve quindi esporre ulteriori azioni operative.
+    //
+    if (request.isArchived) {
+      return const RequestActions(
+        primary: RequestAction(
+          icon: Icons.archive_outlined,
+          label: "Richiesta archiviata",
+          subtitle:
+          "Questa richiesta è conservata nello storico.",
+          color: Colors.grey,
+          enabled: false,
+        ),
+      );
+    }
+
     switch (request.status) {
     //----------------------------------------------------------
     // BOZZA

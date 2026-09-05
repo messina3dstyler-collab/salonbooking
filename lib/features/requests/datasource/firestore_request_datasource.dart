@@ -35,7 +35,9 @@ class FirestoreRequestDatasource
       );
 
   CollectionReference<Map<String, dynamic>>
-  _timeline(String requestId) =>
+  _timeline(
+      String requestId,
+      ) =>
       _requests
           .doc(requestId)
           .collection("timeline");
@@ -80,8 +82,8 @@ class FirestoreRequestDatasource
       return null;
     }
 
-    return _requestMapper.fromMap(
-      doc.data()!,
+    return _requestMapper.fromDocument(
+      doc,
     );
   }
 
@@ -138,8 +140,8 @@ class FirestoreRequestDatasource
           (snapshot) => snapshot.docs
           .map(
             (doc) =>
-            _requestMapper.fromMap(
-              doc.data(),
+            _requestMapper.fromDocument(
+              doc,
             ),
       )
           .toList(),
@@ -161,8 +163,8 @@ class FirestoreRequestDatasource
           (snapshot) => snapshot.docs
           .map(
             (doc) =>
-            _requestMapper.fromMap(
-              doc.data(),
+            _requestMapper.fromDocument(
+              doc,
             ),
       )
           .toList(),
@@ -184,8 +186,8 @@ class FirestoreRequestDatasource
           (snapshot) => snapshot.docs
           .map(
             (doc) =>
-            _requestMapper.fromMap(
-              doc.data(),
+            _requestMapper.fromDocument(
+              doc,
             ),
       )
           .toList(),
@@ -214,8 +216,8 @@ class FirestoreRequestDatasource
           (snapshot) => snapshot.docs
           .map(
             (doc) =>
-            _requestMapper.fromMap(
-              doc.data(),
+            _requestMapper.fromDocument(
+              doc,
             ),
       )
           .toList(),

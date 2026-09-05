@@ -16,10 +16,21 @@ class ArchiveRequestOperation extends RequestTransactionOperation {
       );
     }
 
-    transaction.delete(
+    if (request.isArchived) {
+      throw StateError(
+        "La richiesta è già stata archiviata.",
+      );
+    }
+
+    transaction.update(
       requestDocument(
         request.id,
       ),
+      {
+        "isArchived": true,
+        "archivedAt": DateTime.now().toIso8601String(),
+        "updatedAt": DateTime.now().toIso8601String(),
+      },
     );
   }
 }

@@ -87,8 +87,8 @@ class FirestoreRequestTransaction
       );
     }
 
-    return _requestMapper.fromMap(
-      snapshot.data()!,
+    return _requestMapper.fromDocument(
+      snapshot,
     );
   }
 

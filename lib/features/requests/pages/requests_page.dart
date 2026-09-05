@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../models/request_timeline_event.dart';
 import '../request_providers.dart';
 import '../widgets/request_dashboard.dart';
 import '../widgets/request_details_sheet.dart';
@@ -76,11 +77,24 @@ class _RequestsPageState
               requests: requests,
               loading: controller.isLoading,
               error: controller.error,
-              onTap: (request) {
+              onTap: (request) async {
+                await controller.loadTimeline(
+                  request.id,
+                );
+
+                if (!context.mounted) {
+                  return;
+                }
+
+                final List<RequestTimelineEvent> timeline =
+                controller.error == null
+                    ? controller.timeline
+                    : const <RequestTimelineEvent>[];
+
                 RequestDetailsSheet.show(
                   context,
                   request: request,
-                  timeline: const [],
+                  timeline: timeline,
                   customerName: request.customerName,
                   appointmentTitle: "Appuntamento",
                 );

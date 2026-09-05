@@ -3,9 +3,9 @@ import '../models/appointment_request.dart';
 class RequestStateValidator {
   const RequestStateValidator();
 
-  //--------------------------------------------------
+  // --------------------------------------------------
   // VALIDAZIONE CREAZIONE
-  //--------------------------------------------------
+  // --------------------------------------------------
 
   String? validateCreation(
       AppointmentRequest request,
@@ -14,38 +14,50 @@ class RequestStateValidator {
       return "Una nuova richiesta deve essere creata in stato Draft.";
     }
 
+    if (request.isArchived) {
+      return "Una nuova richiesta non può essere archiviata.";
+    }
+
     return null;
   }
 
-  //--------------------------------------------------
+  // --------------------------------------------------
   // VALIDAZIONE ACCETTAZIONE
-  //--------------------------------------------------
+  // --------------------------------------------------
 
   String? validateAccept(
       AppointmentRequest request,
       ) {
+    if (request.isArchived) {
+      return "Una richiesta archiviata non può essere accettata.";
+    }
+
     return validateTransition(
       from: request.status,
       to: AppointmentRequestStatus.accepted,
     );
   }
 
-  //--------------------------------------------------
+  // --------------------------------------------------
   // VALIDAZIONE RIFIUTO
-  //--------------------------------------------------
+  // --------------------------------------------------
 
   String? validateReject(
       AppointmentRequest request,
       ) {
+    if (request.isArchived) {
+      return "Una richiesta archiviata non può essere rifiutata.";
+    }
+
     return validateTransition(
       from: request.status,
       to: AppointmentRequestStatus.rejected,
     );
   }
 
-  //--------------------------------------------------
+  // --------------------------------------------------
   // CAMBIO DI STATO
-  //--------------------------------------------------
+  // --------------------------------------------------
 
   String? validateTransition({
     required AppointmentRequestStatus from,
@@ -56,9 +68,9 @@ class RequestStateValidator {
     }
 
     switch (from) {
-    //------------------------------------------------
+    // ------------------------------------------------
     // DRAFT
-    //------------------------------------------------
+    // ------------------------------------------------
 
       case AppointmentRequestStatus.draft:
         switch (to) {
@@ -70,9 +82,9 @@ class RequestStateValidator {
             return "Una bozza può essere solo inviata o annullata.";
         }
 
-    //------------------------------------------------
+    // ------------------------------------------------
     // PENDING CUSTOMER
-    //------------------------------------------------
+    // ------------------------------------------------
 
       case AppointmentRequestStatus.pendingCustomer:
         switch (to) {
@@ -86,9 +98,9 @@ class RequestStateValidator {
             return "Transizione non consentita.";
         }
 
-    //------------------------------------------------
+    // ------------------------------------------------
     // STATI FINALI
-    //------------------------------------------------
+    // ------------------------------------------------
 
       case AppointmentRequestStatus.accepted:
         return "Una richiesta accettata è definitiva.";
@@ -104,9 +116,9 @@ class RequestStateValidator {
     }
   }
 
-  //--------------------------------------------------
+  // --------------------------------------------------
   // STATO FINALE
-  //--------------------------------------------------
+  // --------------------------------------------------
 
   bool isFinalState(
       AppointmentRequestStatus status,
@@ -124,33 +136,39 @@ class RequestStateValidator {
     }
   }
 
-  //--------------------------------------------------
+  // --------------------------------------------------
   // MODIFICABILE
-  //--------------------------------------------------
+  // --------------------------------------------------
 
   bool canEdit(
       AppointmentRequest request,
       ) {
-    return request.status == AppointmentRequestStatus.draft;
+    return request.status == AppointmentRequestStatus.draft &&
+        !request.isArchived;
   }
 
-  //--------------------------------------------------
+  // --------------------------------------------------
   // ELIMINABILE
-  //--------------------------------------------------
+  // --------------------------------------------------
 
   bool canDelete(
       AppointmentRequest request,
       ) {
-    return request.status == AppointmentRequestStatus.draft;
+    return request.status == AppointmentRequestStatus.draft &&
+        !request.isArchived;
   }
 
-  //--------------------------------------------------
+  // --------------------------------------------------
   // ANNULLABILE
-  //--------------------------------------------------
+  // --------------------------------------------------
 
   bool canCancel(
       AppointmentRequest request,
       ) {
+    if (request.isArchived) {
+      return false;
+    }
+
     switch (request.status) {
       case AppointmentRequestStatus.draft:
       case AppointmentRequestStatus.pendingCustomer:
@@ -161,26 +179,26 @@ class RequestStateValidator {
     }
   }
 
-  //--------------------------------------------------
+  // --------------------------------------------------
   // RICHIEDE RISPOSTA CLIENTE
-  //--------------------------------------------------
+  // --------------------------------------------------
 
   bool requiresCustomerResponse(
       AppointmentRequest request,
       ) {
     return request.status ==
-        AppointmentRequestStatus.pendingCustomer;
+        AppointmentRequestStatus.pendingCustomer &&
+        !request.isArchived;
   }
 
-  //--------------------------------------------------
+  // --------------------------------------------------
   // ARCHIVIABILE
-  //--------------------------------------------------
+  // --------------------------------------------------
 
   bool canArchive(
       AppointmentRequest request,
       ) {
-    return isFinalState(
-      request.status,
-    );
+    return isFinalState(request.status) &&
+        !request.isArchived;
   }
 }

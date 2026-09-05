@@ -63,6 +63,8 @@ class AppointmentRequest {
     required this.createdAt,
     required this.updatedAt,
     required this.payload,
+    this.isArchived = false,
+    this.archivedAt,
   });
 
   final String id;
@@ -98,6 +100,21 @@ class AppointmentRequest {
   /// Dati specifici della proposta.
   final Map<String, dynamic> payload;
 
+  /// Indica se la richiesta è stata archiviata.
+  ///
+  /// L'archiviazione è separata dallo stato funzionale della richiesta:
+  /// una richiesta può quindi essere accepted/rejected/expired/cancelled
+  /// e successivamente essere archiviata.
+  ///
+  /// Default false per mantenere compatibilità con i documenti
+  /// Firestore creati prima dell'introduzione dell'archiviazione.
+  final bool isArchived;
+
+  /// Data e ora in cui la richiesta è stata archiviata.
+  ///
+  /// Rimane null per le richieste non archiviate.
+  final DateTime? archivedAt;
+
   AppointmentRequest copyWith({
     String? id,
     String? appointmentId,
@@ -114,6 +131,8 @@ class AppointmentRequest {
     DateTime? createdAt,
     DateTime? updatedAt,
     Map<String, dynamic>? payload,
+    bool? isArchived,
+    DateTime? archivedAt,
   }) {
     return AppointmentRequest(
       id: id ?? this.id,
@@ -131,6 +150,8 @@ class AppointmentRequest {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       payload: payload ?? this.payload,
+      isArchived: isArchived ?? this.isArchived,
+      archivedAt: archivedAt ?? this.archivedAt,
     );
   }
 
@@ -151,12 +172,16 @@ class AppointmentRequest {
       "createdAt": createdAt.toIso8601String(),
       "updatedAt": updatedAt.toIso8601String(),
       "payload": payload,
+      "isArchived": isArchived,
+      "archivedAt": archivedAt?.toIso8601String(),
     };
   }
 
   factory AppointmentRequest.fromMap(
       Map<String, dynamic> map,
       ) {
+    final dynamic rawArchivedAt = map["archivedAt"];
+
     return AppointmentRequest(
       id: map["id"] ?? "",
       appointmentId: map["appointmentId"] ?? "",
@@ -186,6 +211,12 @@ class AppointmentRequest {
       ),
       payload: Map<String, dynamic>.from(
         map["payload"] ?? {},
+      ),
+      isArchived: map["isArchived"] == true,
+      archivedAt: rawArchivedAt == null
+          ? null
+          : DateTime.parse(
+        rawArchivedAt,
       ),
     );
   }
@@ -236,6 +267,13 @@ class AppointmentRequest {
           isRejected ||
           isExpired ||
           isCancelled;
+
+  // --------------------------------------------------
+  // ARCHIVE
+  // --------------------------------------------------
+
+  bool get canBeArchived =>
+      isClosed && !isArchived;
 
   // --------------------------------------------------
   // AUTHOR
