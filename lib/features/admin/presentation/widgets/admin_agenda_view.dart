@@ -101,7 +101,6 @@ class _AdminAgendaViewState
     if (_initialScrollDone) return;
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      // aspetta che la timeline sia realmente costruita
       await Future.delayed(
         const Duration(milliseconds: 80),
       );
@@ -197,8 +196,9 @@ class _AdminAgendaViewState
               .read(
             adminAppointmentsControllerProvider,
           )
-              .deleteAppointment(
+              .updateStatus(
             appointmentId: item.id,
+            status: 'Annullata',
           );
         },
       ),
@@ -341,9 +341,11 @@ class _AdminAgendaViewState
                   child: Column(
                     children: [
                       AdminAgendaHeader(
-                        employees: employees,
+                        employees:
+                        employees,
                         items:
-                        agendaController.items,
+                        agendaController
+                            .items,
                         horizontalController:
                         _horizontalController,
                         activeEmployees:
@@ -367,9 +369,11 @@ class _AdminAgendaViewState
                     _verticalController,
                     horizontalController:
                     _horizontalController,
-                    employees: employees,
+                    employees:
+                    employees,
                     items:
-                    agendaController.items,
+                    agendaController
+                        .items,
                     activeEmployees:
                     activeEmployees,
                     pulseAnimation:
