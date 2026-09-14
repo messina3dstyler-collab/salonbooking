@@ -7,7 +7,9 @@ import 'package:intl/intl.dart';
 
 import '../../../../app/routes.dart';
 
+import '../../../appointment/appointment_availability_providers.dart';
 import '../../../appointment/appointment_providers.dart';
+import '../../../appointment/models/appointment_availability_model.dart';
 import '../../../appointment/models/appointment_model.dart';
 
 import 'package:salon_booking/features/employee/models/employee_model.dart';
@@ -126,26 +128,27 @@ class _BookingPageState extends ConsumerState<BookingPage> {
       availableTimes = [];
     });
 
-    final appointmentController = ref.read(
-      appointmentControllerProvider,
+    final availabilityRepository = ref.read(
+      appointmentAvailabilityRepositoryProvider,
     );
 
     final calendarController = ref.read(
       employeeCalendarControllerProvider,
     );
 
-    print('STEP 1 - carico appuntamenti');
+    print('STEP 1 - carico disponibilità');
 
-    final appointments =
-    await appointmentController
-        .getEmployeeAppointmentsByDate(
+    final availability =
+        await availabilityRepository
+            .getAvailabilityByEmployeeAndDate(
+      salonId: widget.salon.id,
       employeeId: widget.employee.id,
       date: date!,
     );
 
     print(
-      'STEP 2 - appuntamenti caricati: '
-          '${appointments.length}',
+      'STEP 2 - disponibilità occupata caricata: '
+          '${availability.length}',
     );
 
     print('STEP 3 - carico calendario');
@@ -223,29 +226,29 @@ class _BookingPageState extends ConsumerState<BookingPage> {
         bool busy = false;
 
         // ===========================
-        // Controllo appuntamenti
+        // Controllo disponibilità
         // ===========================
+        //
+        // La collection `appointment_availability`
+        // contiene esclusivamente gli slot occupati.
+        // Non vengono letti Appointment o dati cliente.
+        //
 
-        for (final appointment in appointments) {
-          if (appointment.isCancelled) {
-            continue;
-          }
+        for (
+          final AppointmentAvailabilityModel occupiedSlot
+              in availability
+        ) {
+          final occupiedStart = occupiedSlot.start;
 
-          final bookingStart =
-              appointment.appointmentDate;
-
-          final bookingEnd =
-          bookingStart.add(
-            Duration(
-              minutes: appointment.duration,
-            ),
+          final occupiedEnd = occupiedStart.add(
+            const Duration(minutes: slotInterval),
           );
 
           if (_overlap(
             slotStart,
             slotEnd,
-            bookingStart,
-            bookingEnd,
+            occupiedStart,
+            occupiedEnd,
           )) {
             busy = true;
             break;
@@ -655,7 +658,8 @@ class _BookingPageState extends ConsumerState<BookingPage> {
       // ==========================================
       // CREAZIONE ATOMICA
       //
-      // Appointment + appointment_slots
+      // Appointment + appointment_slots +
+      // appointment_availability
       // vengono creati nella stessa Transaction.
       //
       // Se uno degli slot è già occupato,

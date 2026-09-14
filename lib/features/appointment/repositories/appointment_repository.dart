@@ -2,11 +2,15 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/appointment_model.dart';
 import '../models/appointment_slot_key.dart';
+import 'appointment_availability_repository.dart';
 
 class AppointmentRepository {
   AppointmentRepository(this._firestore);
 
   final FirebaseFirestore _firestore;
+
+  late final AppointmentAvailabilityRepository _availabilityRepository =
+      AppointmentAvailabilityRepository(_firestore);
 
   CollectionReference<Map<String, dynamic>> get _appointments =>
       _firestore.collection('appointments');
@@ -179,6 +183,12 @@ class AppointmentRepository {
             },
           );
         }
+
+        _availabilityRepository.syncInTransaction(
+          oldAppointment: null,
+          newAppointment: appointment,
+          transaction: transaction,
+        );
       },
     );
   }
@@ -442,6 +452,12 @@ class AppointmentRepository {
         );
       }
     }
+
+    _availabilityRepository.syncInTransaction(
+      oldAppointment: currentAppointment,
+      newAppointment: appointment,
+      transaction: transaction,
+    );
   }
 
   /// Applica una patch all'interno di una Transaction già aperta,
@@ -659,6 +675,12 @@ class AppointmentRepository {
         );
       }
     }
+
+    _availabilityRepository.syncInTransaction(
+      oldAppointment: currentAppointment,
+      newAppointment: updatedAppointment,
+      transaction: transaction,
+    );
   }
 
   // ==================================================
@@ -783,6 +805,12 @@ class AppointmentRepository {
         transaction.delete(slotRef);
       }
 
+      _availabilityRepository.syncInTransaction(
+        oldAppointment: appointment,
+        newAppointment: null,
+        transaction: transaction,
+      );
+
       return;
     }
 
@@ -818,6 +846,12 @@ class AppointmentRepository {
         for (final slotRef in slotRefs) {
           transaction.delete(slotRef);
         }
+
+        _availabilityRepository.syncInTransaction(
+          oldAppointment: appointment,
+          newAppointment: null,
+          transaction: transaction,
+        );
       },
     );
   }
@@ -1118,6 +1152,14 @@ class AppointmentRepository {
         for (final slotRef in slotRefs) {
           transaction.delete(slotRef);
         }
+
+        _availabilityRepository.syncInTransaction(
+          oldAppointment: appointment,
+          newAppointment: appointment.copyWith(
+            status: AppointmentStatus.cancelled,
+          ),
+          transaction: transaction,
+        );
       },
     );
   }
