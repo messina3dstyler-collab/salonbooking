@@ -6,11 +6,15 @@ import '../models/admin_service_model.dart';
 import 'package:salon_booking/features/employee/models/employee_model.dart';
 import '../../appointment/models/appointment_model.dart';
 import '../../appointment/models/appointment_slot_key.dart';
+import '../../appointment/repositories/appointment_availability_repository.dart';
 
 class AdminAppointmentsRepository {
   AdminAppointmentsRepository(this._firestore);
 
   final FirebaseFirestore _firestore;
+
+  late final AppointmentAvailabilityRepository _availabilityRepository =
+      AppointmentAvailabilityRepository(_firestore);
 
   CollectionReference<Map<String, dynamic>> get _appointments =>
       _firestore.collection('appointments');
@@ -269,6 +273,7 @@ class AdminAppointmentsRepository {
   ///
   /// Appointment → Annullata
   /// appointment_slots → eliminati
+  /// appointment_availability → eliminati
   ///
   /// Il salonId viene verificato contro il documento reale.
   Future<void> updateStatus(
@@ -394,6 +399,14 @@ class AdminAppointmentsRepository {
             );
           }
         }
+
+        _availabilityRepository.syncInTransaction(
+          oldAppointment: appointment,
+          newAppointment: appointment.copyWith(
+            status: normalizedStatus,
+          ),
+          transaction: transaction,
+        );
       },
     );
   }
@@ -413,7 +426,8 @@ class AdminAppointmentsRepository {
   /// 5. legge vecchi e nuovi slot;
   /// 6. controlla collisioni;
   /// 7. aggiorna Appointment;
-  /// 8. rialloca appointment_slots.
+  /// 8. rialloca appointment_slots;
+  /// 9. rialloca appointment_availability.
   Future<void> updateEmployee({
     required String salonId,
     required String appointmentId,
@@ -700,6 +714,12 @@ class AdminAppointmentsRepository {
             },
           );
         }
+
+        _availabilityRepository.syncInTransaction(
+          oldAppointment: appointment,
+          newAppointment: updatedAppointment,
+          transaction: transaction,
+        );
       },
     );
   }
@@ -710,8 +730,9 @@ class AdminAppointmentsRepository {
 
   /// Elimina un Appointment dal flusso Admin.
   ///
-  /// Appointment e relativi appointment_slots vengono
-  /// eliminati nella stessa Transaction.
+  /// Appointment, appointment_slots e
+  /// appointment_availability vengono eliminati
+  /// nella stessa Transaction.
   Future<void> deleteAppointment(
       String salonId,
       String appointmentId,
@@ -826,6 +847,12 @@ class AdminAppointmentsRepository {
             );
           }
         }
+
+        _availabilityRepository.syncInTransaction(
+          oldAppointment: appointment,
+          newAppointment: null,
+          transaction: transaction,
+        );
       },
     );
   }
