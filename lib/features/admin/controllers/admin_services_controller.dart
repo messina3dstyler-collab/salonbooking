@@ -22,15 +22,11 @@ class AdminServicesController extends ChangeNotifier {
   // GETTERS
   // ==========================================
 
-  List<AdminServiceModel> get services =>
-      _services;
+  List<AdminServiceModel> get services => _services;
 
-  bool get isLoading =>
-      _isLoading;
+  bool get isLoading => _isLoading;
 
-  String? get error =>
-      _error;
-
+  String? get error => _error;
 
   // ==========================================
   // LOAD SERVIZI
@@ -39,69 +35,40 @@ class AdminServicesController extends ChangeNotifier {
   Future<void> loadServices(
       String salonId,
       ) async {
-
     if (salonId.isEmpty) {
-
-      _error =
-      'Salon ID mancante';
+      _error = 'Salon ID mancante';
 
       notifyListeners();
 
       return;
     }
 
+    _salonId = salonId;
 
-    _salonId =
-        salonId;
-
-
-    _setLoading(
-      true,
-    );
-
+    _setLoading(true);
 
     try {
-
-      _services =
-      await _service.getAllServices(
+      _services = await _service.getAllServices(
         salonId,
       );
 
-
-      _error =
-      null;
-
-
+      _error = null;
     } catch (e, stack) {
-
       debugPrint(
         'ERRORE CARICAMENTO SERVIZI: $e',
       );
-
 
       debugPrintStack(
         stackTrace: stack,
       );
 
+      _services = [];
 
-      _services =
-      [];
-
-
-      _error =
-          e.toString();
-
-
+      _error = e.toString();
     } finally {
-
-      _setLoading(
-        false,
-      );
-
+      _setLoading(false);
     }
   }
-
-
 
   // ==========================================
   // CREATE
@@ -110,28 +77,19 @@ class AdminServicesController extends ChangeNotifier {
   Future<void> createService(
       AdminServiceModel service,
       ) async {
-
     try {
-
       await _service.createService(
         _salonId,
         service,
       );
 
-
       await refresh();
-
-
     } catch (e) {
+      _setError(e);
 
-      _setError(
-        e,
-      );
-
+      rethrow;
     }
   }
-
-
 
   // ==========================================
   // UPDATE
@@ -141,29 +99,20 @@ class AdminServicesController extends ChangeNotifier {
     required String serviceId,
     required Map<String, dynamic> data,
   }) async {
-
     try {
-
       await _service.updateService(
         _salonId,
         serviceId,
         data,
       );
 
-
       await refresh();
-
-
     } catch (e) {
+      _setError(e);
 
-      _setError(
-        e,
-      );
-
+      rethrow;
     }
   }
-
-
 
   // ==========================================
   // DELETE
@@ -172,28 +121,17 @@ class AdminServicesController extends ChangeNotifier {
   Future<void> deleteService(
       String serviceId,
       ) async {
-
     try {
-
       await _service.deleteService(
         _salonId,
         serviceId,
       );
 
-
       await refresh();
-
-
     } catch (e) {
-
-      _setError(
-        e,
-      );
-
+      _setError(e);
     }
   }
-
-
 
   // ==========================================
   // RESTORE
@@ -202,28 +140,17 @@ class AdminServicesController extends ChangeNotifier {
   Future<void> restoreService(
       String serviceId,
       ) async {
-
     try {
-
       await _service.restoreService(
         _salonId,
         serviceId,
       );
 
-
       await refresh();
-
-
     } catch (e) {
-
-      _setError(
-        e,
-      );
-
+      _setError(e);
     }
   }
-
-
 
   // ==========================================
   // GET BY ID
@@ -232,42 +159,28 @@ class AdminServicesController extends ChangeNotifier {
   AdminServiceModel? getById(
       String id,
       ) {
-
     for (final service in _services) {
-
       if (service.id == id) {
-
         return service;
-
       }
     }
 
-
     return null;
   }
-
-
 
   // ==========================================
   // REFRESH
   // ==========================================
 
   Future<void> refresh() async {
-
     if (_salonId.isEmpty) {
-
       return;
-
     }
-
 
     await loadServices(
       _salonId,
     );
-
   }
-
-
 
   // ==========================================
   // STATE
@@ -276,24 +189,16 @@ class AdminServicesController extends ChangeNotifier {
   void _setLoading(
       bool value,
       ) {
-
-    _isLoading =
-        value;
+    _isLoading = value;
 
     notifyListeners();
-
   }
-
-
 
   void _setError(
       Object error,
       ) {
-
-    _error =
-        error.toString();
+    _error = error.toString();
 
     notifyListeners();
-
   }
 }

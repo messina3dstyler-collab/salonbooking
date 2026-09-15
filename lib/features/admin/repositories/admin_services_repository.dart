@@ -7,16 +7,32 @@ class AdminServicesRepository {
       this._firestore,
       );
 
+  static const int maxServiceDurationMinutes = 180;
+
   final FirebaseFirestore _firestore;
 
-  CollectionReference<Map<String, dynamic>>
-  _servicesCollection(
+  CollectionReference<Map<String, dynamic>> _servicesCollection(
       String salonId,
       ) {
     return _firestore
         .collection('salons')
         .doc(salonId)
         .collection('services');
+  }
+
+  void _validateServiceDuration(int duration) {
+    if (duration <= 0) {
+      throw ArgumentError(
+        'La durata del servizio deve essere maggiore di 0 minuti.',
+      );
+    }
+
+    if (duration > maxServiceDurationMinutes) {
+      throw ArgumentError(
+        'La durata massima consentita per un servizio è '
+            '$maxServiceDurationMinutes minuti.',
+      );
+    }
   }
 
   // =====================================================
@@ -90,12 +106,10 @@ class AdminServicesRepository {
       ) async {
     final snapshot = await _servicesCollection(
       salonId,
-    )
-        .where(
+    ).where(
       'category',
       isEqualTo: category,
-    )
-        .get();
+    ).get();
 
     return snapshot.docs
         .map(
@@ -115,6 +129,8 @@ class AdminServicesRepository {
       String salonId,
       AdminServiceModel service,
       ) async {
+    _validateServiceDuration(service.duration);
+
     final data = service.toMap();
 
     final doc = await _servicesCollection(
@@ -139,11 +155,22 @@ class AdminServicesRepository {
       String serviceId,
       Map<String, dynamic> data,
       ) async {
+    if (data.containsKey('duration')) {
+      final rawDuration = data['duration'];
+
+      final duration = rawDuration is int
+          ? rawDuration
+          : int.tryParse(
+        rawDuration?.toString() ?? '',
+      ) ??
+          0;
+
+      _validateServiceDuration(duration);
+    }
+
     await _servicesCollection(
       salonId,
-    )
-        .doc(serviceId)
-        .update(
+    ).doc(serviceId).update(
       {
         ...data,
         'updatedAt': Timestamp.now(),
@@ -162,9 +189,7 @@ class AdminServicesRepository {
       ) async {
     await _servicesCollection(
       salonId,
-    )
-        .doc(serviceId)
-        .update(
+    ).doc(serviceId).update(
       {
         'active': active,
         'updatedAt': Timestamp.now(),

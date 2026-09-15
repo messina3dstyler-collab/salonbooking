@@ -193,8 +193,19 @@ service cloud.firestore {
 
         allow read: if signedIn();
 
-        allow create, update, delete: if
-        ownsSalon(salonId);
+        allow create: if
+        ownsSalon(salonId)
+        && request.resource.data.duration is int
+        && request.resource.data.duration > 0
+        && request.resource.data.duration <= 180;
+
+        allow update: if
+        ownsSalon(salonId)
+        && request.resource.data.duration is int
+        && request.resource.data.duration > 0
+        && request.resource.data.duration <= 180;
+
+        allow delete: if ownsSalon(salonId);
       }
 
 

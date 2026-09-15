@@ -23,8 +23,10 @@ class AdminServiceDialog extends ConsumerStatefulWidget {
 
 class _AdminServiceDialogState
     extends ConsumerState<AdminServiceDialog> {
+  static const int _maxServiceDurationMinutes = 180;
+
   final GlobalKey<FormState> _formKey =
-      GlobalKey<FormState>();
+  GlobalKey<FormState>();
 
   late TextEditingController _nameController;
   late TextEditingController _descriptionController;
@@ -135,13 +137,13 @@ class _AdminServiceDialogState
                   items: _categories
                       .map(
                         (category) =>
-                            DropdownMenuItem<String>(
+                        DropdownMenuItem<String>(
                           value: category,
                           child: Text(
                             category,
                           ),
                         ),
-                      )
+                  )
                       .toList(),
                   onChanged: (value) {
                     if (value == null) {
@@ -174,17 +176,25 @@ class _AdminServiceDialogState
                   keyboardType: TextInputType.number,
                   decoration: const InputDecoration(
                     labelText: 'Durata minuti',
+                    helperText:
+                    'Durata massima consentita: 180 minuti',
                     prefixIcon: Icon(
                       Icons.timer,
                     ),
                   ),
                   validator: (value) {
                     final duration =
-                        int.tryParse(value ?? '');
+                    int.tryParse(value ?? '');
 
                     if (duration == null ||
                         duration <= 0) {
                       return 'Durata non valida';
+                    }
+
+                    if (duration >
+                        _maxServiceDurationMinutes) {
+                      return 'La durata massima consentita è '
+                          'di $_maxServiceDurationMinutes minuti';
                     }
 
                     return null;
@@ -196,7 +206,7 @@ class _AdminServiceDialogState
                 TextFormField(
                   controller: _priceController,
                   keyboardType:
-                      const TextInputType.numberWithOptions(
+                  const TextInputType.numberWithOptions(
                     decimal: true,
                   ),
                   decoration: const InputDecoration(
@@ -242,8 +252,8 @@ class _AdminServiceDialogState
           onPressed: _saving
               ? null
               : () {
-                  Navigator.pop(context);
-                },
+            Navigator.pop(context);
+          },
           child: const Text(
             'Annulla',
           ),
@@ -254,15 +264,15 @@ class _AdminServiceDialogState
               : _save,
           child: _saving
               ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                  ),
-                )
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+            ),
+          )
               : const Text(
-                  'Salva',
-                ),
+            'Salva',
+          ),
         ),
       ],
     );
@@ -283,15 +293,15 @@ class _AdminServiceDialogState
 
     try {
       final duration = int.tryParse(
-            _durationController.text.trim(),
-          ) ??
+        _durationController.text.trim(),
+      ) ??
           0;
 
       final price = double.tryParse(
-            _priceController.text
-                .trim()
-                .replaceAll(',', '.'),
-          ) ??
+        _priceController.text
+            .trim()
+            .replaceAll(',', '.'),
+      ) ??
           0;
 
       final data = {
