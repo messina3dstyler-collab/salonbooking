@@ -66,6 +66,75 @@ service cloud.firestore {
     }
 
 
+
+    // =========================================================
+    // APPOINTMENT / SLOT / AVAILABILITY HELPERS
+    // =========================================================
+
+    function appointmentRef(appointmentId) {
+      return /databases/$(database)/documents/appointments/$(appointmentId);
+    }
+
+    function employeeRef(salonId, employeeId) {
+      return /databases/$(database)/documents/salons/$(salonId)/employees/$(employeeId);
+    }
+
+    function serviceRef(salonId, serviceId) {
+      return /databases/$(database)/documents/salons/$(salonId)/services/$(serviceId);
+    }
+
+    function slotRef(slotId) {
+      return /databases/$(database)/documents/appointment_slots/$(slotId);
+    }
+
+    function validAppointmentData(data) {
+      return
+        data.userId is string
+        && data.userId != ""
+        && data.salonId is string
+        && data.salonId != ""
+        && data.employeeId is string
+        && data.employeeId != ""
+        && data.serviceId is string
+        && data.serviceId != ""
+        && data.date is timestamp
+        && data.duration is int
+        && data.duration > 0
+        && data.duration <= 180
+        && data.status is string
+        && (
+          data.status == "Prenotata"
+          || data.status == "Confermata"
+          || data.status == "Completata"
+          || data.status == "Annullata"
+        );
+    }
+
+    function appointmentReferencesMatch(data) {
+      return
+        exists(employeeRef(data.salonId, data.employeeId))
+        && exists(serviceRef(data.salonId, data.serviceId))
+        && get(serviceRef(data.salonId, data.serviceId)).data.duration is int
+        && get(serviceRef(data.salonId, data.serviceId)).data.duration > 0
+        && get(serviceRef(data.salonId, data.serviceId)).data.duration <= 180
+        && data.duration == get(serviceRef(data.salonId, data.serviceId)).data.duration
+        && data.serviceDuration == data.duration;
+    }
+
+    function validSlotData(data) {
+      return
+        data.appointmentId is string
+        && data.appointmentId != ""
+        && data.userId is string
+        && data.userId != ""
+        && data.salonId is string
+        && data.salonId != ""
+        && data.employeeId is string
+        && data.employeeId != ""
+        && data.start is timestamp;
+    }
+
+
     // =========================================================
     // USERS
     // =========================================================
@@ -277,6 +346,7 @@ service cloud.firestore {
     }
 
 
+
     // =========================================================
     // ROOT APPOINTMENTS
     // =========================================================
@@ -288,18 +358,18 @@ service cloud.firestore {
       // -------------------------------------------------------
 
       allow read: if
-      signedIn()
-      && (
-        (
-          isUser()
-          && resource.data.userId == request.auth.uid
-        )
-        ||
-        (
-          isSalon()
-          && resource.data.salonId == currentUser().data.salonId
-        )
-      );
+        signedIn()
+        && (
+          (
+            isUser()
+            && resource.data.userId == request.auth.uid
+          )
+          ||
+          (
+            isSalon()
+            && resource.data.salonId == currentUser().data.salonId
+          )
+        );
 
 
       // -------------------------------------------------------
@@ -307,330 +377,354 @@ service cloud.firestore {
       // -------------------------------------------------------
 
       allow create: if
-      signedIn()
-      && (
-        (
-          isUser()
-          && request.resource.data.userId == request.auth.uid
-        )
-        ||
-        (
-          isSalon()
-          && request.resource.data.salonId
-          == currentUser().data.salonId
-        )
-      );
+        signedIn()
+        && validAppointmentData(request.resource.data)
+        && appointmentReferencesMatch(request.resource.data)
+        && (
+          (
+            isUser()
+            && request.resource.data.userId == request.auth.uid
+          )
+          ||
+          (
+            isSalon()
+            && request.resource.data.salonId
+               == currentUser().data.salonId
+          )
+        );
 
 
       // -------------------------------------------------------
       // UPDATE
       // -------------------------------------------------------
-      //
-      // Il Salon può modificare gli appuntamenti del proprio
-      // salone.
-      //
-      // Il customer invece può modificare un Appointment
-      // solamente come parte dell'accettazione di una Request.
-      //
-      // =======================================================
 
       allow update: if
 
-      // =======================================================
-      // SALON
-      // =======================================================
+        // =====================================================
+        // SALON
+        // =====================================================
 
-      (
-        isSalon()
-        && resource.data.salonId
-        == currentUser().data.salonId
-      )
-
-      ||
-
-      // =======================================================
-      // CUSTOMER - ACCEPT REQUEST
-      // =======================================================
-      //
-      // Il customer NON può modificare liberamente
-      // l'Appointment.
-      //
-      // L'update deve essere parte della stessa transaction
-      // che porta la Request:
-      //
-      // pendingCustomer -> accepted
-      //
-      // e collega:
-      //
-      // Appointment.acceptedRequestId == Request.id
-      //
-      // =======================================================
-
-      (
-        isUser()
-
-        // -----------------------------------------------------
-        // Appointment ownership
-        // -----------------------------------------------------
-
-        && resource.data.userId == request.auth.uid
-
-        // -----------------------------------------------------
-        // Appointment identity immutable
-        // -----------------------------------------------------
-
-        && request.resource.data.userId
-        == resource.data.userId
-
-        && request.resource.data.salonId
-        == resource.data.salonId
-
-        // -----------------------------------------------------
-        // acceptedRequestId
-        //
-        // Deve essere valorizzato con una Request reale.
-        // -----------------------------------------------------
-
-        && request.resource.data.acceptedRequestId is string
-
-        && request.resource.data.acceptedRequestId != ""
-
-        // -----------------------------------------------------
-        // La Request collegata deve essere la Request che
-        // viene accettata nella stessa operazione atomica.
-        // -----------------------------------------------------
-
-        && getAfter(
-          /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
-        ).data.status == "accepted"
-
-        // -----------------------------------------------------
-        // Request -> customer
-        // -----------------------------------------------------
-
-        && getAfter(
-          /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
-        ).data.customerId == request.auth.uid
-
-        // -----------------------------------------------------
-        // Request -> Appointment
-        // -----------------------------------------------------
-
-        && getAfter(
-          /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
-        ).data.appointmentId == appointmentId
-
-        // -----------------------------------------------------
-        // Request -> Salon
-        // -----------------------------------------------------
-
-        && getAfter(
-          /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
-        ).data.salonId == resource.data.salonId
-
-        // -----------------------------------------------------
-        // acceptedRequestId deve realmente cambiare.
-        // -----------------------------------------------------
-
-        && request.resource.data.acceptedRequestId
-        != resource.data.acceptedRequestId
-
-        // -----------------------------------------------------
-        // Request type -> Appointment fields
-        // -----------------------------------------------------
-
-        && (
-          // ---------------------------------------------------
-          // RESCHEDULE
-          // ---------------------------------------------------
-
-          (
-            getAfter(
-              /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
-            ).data.type == "reschedule"
-
-            && getAfter(
-              /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
-            ).data.payload.newStart is string
-
-            && getAfter(
-              /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
-            ).data.payload.newStart != ""
-
-            && request.resource.data.diff(resource.data)
-              .affectedKeys()
-              .hasOnly([
-              "date",
-              "acceptedRequestId"
-            ])
-
-            // La data deve effettivamente cambiare.
-            //
-            // Firestore Rules non possono eseguire DateTime.parse()
-            // sul valore stringa della payload.
-            //
-            // Per questo verifichiamo che:
-            // - il payload contenga newStart;
-            // - date sia tra i campi modificati;
-            // - acceptedRequestId sia quello della Request.
-            //
-            // La conversione stringa -> Timestamp viene eseguita
-            // dal Dart service prima della write.
-
-            && request.resource.data.date
-            != resource.data.date
-          )
-
-          ||
-
-          // ---------------------------------------------------
-          // CHANGE EMPLOYEE
-          // ---------------------------------------------------
-
-          (
-            getAfter(
-              /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
-            ).data.type == "changeEmployee"
-
-            && (
-              (
-                getAfter(
-                  /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
-                ).data.payload.newEmployeeId is string
-
-                && getAfter(
-                  /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
-                ).data.payload.newEmployeeId != ""
-
-                && request.resource.data.employeeId
-                ==
-                getAfter(
-                  /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
-                ).data.payload.newEmployeeId
-              )
-
-              ||
-
-              (
-                getAfter(
-                  /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
-                ).data.payload.newEmployee is string
-
-                && getAfter(
-                  /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
-                ).data.payload.newEmployee != ""
-
-                && request.resource.data.employeeId
-                ==
-                getAfter(
-                  /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
-                ).data.payload.newEmployee
-              )
-            )
-
-            && request.resource.data.diff(resource.data)
-              .affectedKeys()
-              .hasOnly([
-              "employeeId",
-              "acceptedRequestId"
-            ])
-          )
-
-          ||
-
-          // ---------------------------------------------------
-          // CHANGE SERVICES
-          // ---------------------------------------------------
-
-          (
-            getAfter(
-              /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
-            ).data.type == "changeServices"
-
-            && (
-              (
-                getAfter(
-                  /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
-                ).data.payload.newServiceId is string
-
-                && getAfter(
-                  /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
-                ).data.payload.newServiceId != ""
-
-                && request.resource.data.serviceId
-                ==
-                getAfter(
-                  /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
-                ).data.payload.newServiceId
-              )
-
-              ||
-
-              (
-                getAfter(
-                  /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
-                ).data.payload.serviceId is string
-
-                && getAfter(
-                  /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
-                ).data.payload.serviceId != ""
-
-                && request.resource.data.serviceId
-                ==
-                getAfter(
-                  /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
-                ).data.payload.serviceId
-              )
-            )
-
-            && request.resource.data.diff(resource.data)
-              .affectedKeys()
-              .hasOnly([
-              "serviceId",
-              "acceptedRequestId"
-            ])
-          )
-
-          ||
-
-          // ---------------------------------------------------
-          // CANCEL APPOINTMENT
-          // ---------------------------------------------------
-
-          (
-            getAfter(
-              /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
-            ).data.type == "cancelAppointment"
-
-            && request.resource.data.status == "Annullata"
-
-            && request.resource.data.diff(resource.data)
-              .affectedKeys()
-              .hasOnly([
-              "status",
-              "acceptedRequestId"
-            ])
-          )
-
-          ||
-
-          // ---------------------------------------------------
-          // CUSTOM
-          // ---------------------------------------------------
-
-          (
-            getAfter(
-              /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
-            ).data.type == "custom"
-
-            && request.resource.data.diff(resource.data)
-              .affectedKeys()
-              .hasOnly([
-              "acceptedRequestId"
-            ])
-          )
+        (
+          isSalon()
+          && resource.data.salonId
+             == currentUser().data.salonId
+          && request.resource.data.userId
+             == resource.data.userId
+          && request.resource.data.salonId
+             == resource.data.salonId
+          && validAppointmentData(request.resource.data)
+          && request.resource.data.employeeId
+             == resource.data.employeeId
+          && request.resource.data.serviceId
+             == resource.data.serviceId
+          && request.resource.data.duration
+             == resource.data.duration
+          && request.resource.data.serviceDuration
+             == resource.data.serviceDuration
         )
-      );
+
+        ||
+
+        // =====================================================
+        // CUSTOMER - ACCEPT REQUEST
+        // =====================================================
+
+        (
+          isUser()
+
+          // ---------------------------------------------------
+          // Appointment ownership
+          // ---------------------------------------------------
+
+          && resource.data.userId == request.auth.uid
+
+          // ---------------------------------------------------
+          // Appointment identity immutable
+          // ---------------------------------------------------
+
+          && request.resource.data.userId
+             == resource.data.userId
+
+          && request.resource.data.salonId
+             == resource.data.salonId
+
+          && validAppointmentData(request.resource.data)
+
+
+          // ---------------------------------------------------
+          // acceptedRequestId
+          // ---------------------------------------------------
+
+          && request.resource.data.acceptedRequestId is string
+
+          && request.resource.data.acceptedRequestId != ""
+
+          && request.resource.data.acceptedRequestId
+             != resource.data.acceptedRequestId
+
+          // ---------------------------------------------------
+          // Request must be accepted in the same transaction.
+          // ---------------------------------------------------
+
+          && getAfter(
+            /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
+          ).data.status == "accepted"
+
+          && getAfter(
+            /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
+          ).data.customerId == request.auth.uid
+
+          && getAfter(
+            /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
+          ).data.appointmentId == appointmentId
+
+          && getAfter(
+            /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
+          ).data.salonId == resource.data.salonId
+
+          // ---------------------------------------------------
+          // Request type -> Appointment fields
+          // ---------------------------------------------------
+
+          && (
+            // -------------------------------------------------
+            // RESCHEDULE
+            // -------------------------------------------------
+
+            (
+              getAfter(
+                /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
+              ).data.type == "reschedule"
+
+              && getAfter(
+                /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
+              ).data.payload.newStart is string
+
+              && getAfter(
+                /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
+              ).data.payload.newStart != ""
+
+              && request.resource.data.diff(resource.data)
+                .affectedKeys()
+                .hasOnly([
+                  "date",
+                  "acceptedRequestId"
+                ])
+
+              && request.resource.data.date
+                 != resource.data.date
+            )
+
+            ||
+
+            // -------------------------------------------------
+            // CHANGE EMPLOYEE
+            // -------------------------------------------------
+
+            (
+              getAfter(
+                /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
+              ).data.type == "changeEmployee"
+
+              && (
+                (
+                  getAfter(
+                    /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
+                  ).data.payload.newEmployeeId is string
+
+                  && getAfter(
+                    /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
+                  ).data.payload.newEmployeeId != ""
+
+                  && request.resource.data.employeeId
+                     ==
+                     getAfter(
+                       /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
+                     ).data.payload.newEmployeeId
+                )
+
+                ||
+
+                (
+                  getAfter(
+                    /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
+                  ).data.payload.newEmployee is string
+
+                  && getAfter(
+                    /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
+                  ).data.payload.newEmployee != ""
+
+                  && request.resource.data.employeeId
+                     ==
+                     getAfter(
+                       /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
+                     ).data.payload.newEmployee
+                )
+              )
+
+              && exists(
+                employeeRef(
+                  resource.data.salonId,
+                  request.resource.data.employeeId
+                )
+              )
+
+              && request.resource.data.diff(resource.data)
+                .affectedKeys()
+                .hasOnly([
+                  "employeeId",
+                  "employeeName",
+                  "employeePhone",
+                  "employeeSpecialization",
+                  "employeeRating",
+                  "acceptedRequestId"
+                ])
+            )
+
+            ||
+
+            // -------------------------------------------------
+            // CHANGE SERVICES
+            // -------------------------------------------------
+
+            (
+              getAfter(
+                /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
+              ).data.type == "changeServices"
+
+              && (
+                (
+                  getAfter(
+                    /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
+                  ).data.payload.newServiceIds is list
+
+                  && getAfter(
+                    /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
+                  ).data.payload.newServiceIds.size() == 1
+
+                  && request.resource.data.serviceId
+                     ==
+                     getAfter(
+                       /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
+                     ).data.payload.newServiceIds[0]
+                )
+              )
+
+              && exists(
+                serviceRef(
+                  resource.data.salonId,
+                  request.resource.data.serviceId
+                )
+              )
+
+              && get(
+                serviceRef(
+                  resource.data.salonId,
+                  request.resource.data.serviceId
+                )
+              ).data.duration is int
+
+              && get(
+                serviceRef(
+                  resource.data.salonId,
+                  request.resource.data.serviceId
+                )
+              ).data.duration > 0
+
+              && get(
+                serviceRef(
+                  resource.data.salonId,
+                  request.resource.data.serviceId
+                )
+              ).data.duration <= 180
+
+              && request.resource.data.duration is int
+              && request.resource.data.duration > 0
+              && request.resource.data.duration <= 180
+
+              && request.resource.data.serviceDuration
+                 == request.resource.data.duration
+
+              && request.resource.data.duration
+                 ==
+                 get(
+                   serviceRef(
+                     resource.data.salonId,
+                     request.resource.data.serviceId
+                   )
+                 ).data.duration
+
+              && request.resource.data.price is number
+              && request.resource.data.price >= 0
+
+              && getAfter(
+                /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
+              ).data.payload.newDuration is int
+
+              && getAfter(
+                /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
+              ).data.payload.newDuration == request.resource.data.duration
+
+              && getAfter(
+                /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
+              ).data.payload.newTotalPrice is number
+
+              && getAfter(
+                /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
+              ).data.payload.newTotalPrice == request.resource.data.price
+
+              && request.resource.data.diff(resource.data)
+                .affectedKeys()
+                .hasOnly([
+                  "serviceId",
+                  "serviceName",
+                  "serviceDuration",
+                  "duration",
+                  "price",
+                  "acceptedRequestId"
+                ])
+            )
+
+            ||
+
+            // -------------------------------------------------
+            // CANCEL APPOINTMENT
+            // -------------------------------------------------
+
+            (
+              getAfter(
+                /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
+              ).data.type == "cancelAppointment"
+
+              && request.resource.data.status == "Annullata"
+
+              && request.resource.data.diff(resource.data)
+                .affectedKeys()
+                .hasOnly([
+                  "status",
+                  "acceptedRequestId"
+                ])
+            )
+
+            ||
+
+            // -------------------------------------------------
+            // CUSTOM
+            // -------------------------------------------------
+
+            (
+              getAfter(
+                /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
+              ).data.type == "custom"
+
+              && request.resource.data.diff(resource.data)
+                .affectedKeys()
+                .hasOnly([
+                  "acceptedRequestId"
+                ])
+            )
+          )
+        );
 
 
       // -------------------------------------------------------
@@ -638,9 +732,321 @@ service cloud.firestore {
       // -------------------------------------------------------
 
       allow delete: if
-      isSalon()
-      && resource.data.salonId
-      == currentUser().data.salonId;
+        isSalon()
+        && resource.data.salonId
+           == currentUser().data.salonId;
+    }
+
+
+    // =========================================================
+    // APPOINTMENT SLOTS
+    // =========================================================
+
+    match /appointment_slots/{slotId} {
+
+      // -------------------------------------------------------
+      // READ
+      // -------------------------------------------------------
+
+      // Slots are private technical locks.
+      // Customers must never read them.
+      allow read: if
+        isSalon()
+        && resource.data.salonId
+           == currentUser().data.salonId;
+
+
+      // -------------------------------------------------------
+      // CREATE
+      // -------------------------------------------------------
+
+      allow create: if
+        signedIn()
+        && validSlotData(request.resource.data)
+
+        && getAfter(
+          appointmentRef(request.resource.data.appointmentId)
+        ).data.userId
+           == request.resource.data.userId
+
+        && getAfter(
+          appointmentRef(request.resource.data.appointmentId)
+        ).data.salonId
+           == request.resource.data.salonId
+
+        && getAfter(
+          appointmentRef(request.resource.data.appointmentId)
+        ).data.employeeId
+           == request.resource.data.employeeId
+
+        && request.resource.data.start
+           >= getAfter(
+                appointmentRef(request.resource.data.appointmentId)
+              ).data.date
+
+        && request.resource.data.start
+           < getAfter(
+                appointmentRef(request.resource.data.appointmentId)
+              ).data.date
+              + duration.value(
+                  getAfter(
+                    appointmentRef(
+                      request.resource.data.appointmentId
+                    )
+                  ).data.duration,
+                  'm'
+                )
+
+        && (
+          (
+            isSalon()
+            && request.resource.data.salonId
+               == currentUser().data.salonId
+          )
+          ||
+          (
+            isUser()
+            && request.resource.data.userId
+               == request.auth.uid
+            && (
+              !exists(
+                appointmentRef(
+                  request.resource.data.appointmentId
+                )
+              )
+              ||
+              getAfter(
+                appointmentRef(
+                  request.resource.data.appointmentId
+                )
+              ).data.acceptedRequestId
+              != get(
+                appointmentRef(
+                  request.resource.data.appointmentId
+                )
+              ).data.acceptedRequestId
+            )
+          )
+        );
+
+
+      // -------------------------------------------------------
+      // UPDATE
+      // -------------------------------------------------------
+
+      allow update: if
+        validSlotData(request.resource.data)
+
+        && getAfter(
+          appointmentRef(request.resource.data.appointmentId)
+        ).data.userId
+           == request.resource.data.userId
+
+        && getAfter(
+          appointmentRef(request.resource.data.appointmentId)
+        ).data.salonId
+           == request.resource.data.salonId
+
+        && getAfter(
+          appointmentRef(request.resource.data.appointmentId)
+        ).data.employeeId
+           == request.resource.data.employeeId
+
+        && request.resource.data.start
+           >= getAfter(
+                appointmentRef(request.resource.data.appointmentId)
+              ).data.date
+
+        && (
+          (
+            isSalon()
+            && request.resource.data.salonId
+               == currentUser().data.salonId
+          )
+          ||
+          (
+            isUser()
+            && request.resource.data.userId
+               == request.auth.uid
+            && getAfter(
+                 appointmentRef(
+                   request.resource.data.appointmentId
+                 )
+               ).data.acceptedRequestId
+               != get(
+                 appointmentRef(
+                   request.resource.data.appointmentId
+                 )
+               ).data.acceptedRequestId
+          )
+        );
+
+
+      // -------------------------------------------------------
+      // DELETE
+      // -------------------------------------------------------
+
+      allow delete: if
+        (
+          isSalon()
+          && resource.data.salonId
+             == currentUser().data.salonId
+        )
+        ||
+        (
+          isUser()
+          && resource.data.userId
+             == request.auth.uid
+          && (
+            !exists(
+              appointmentRef(resource.data.appointmentId)
+            )
+            ||
+            getAfter(
+              appointmentRef(resource.data.appointmentId)
+            ).data.status == "Annullata"
+            ||
+            (
+              getAfter(
+                appointmentRef(resource.data.appointmentId)
+              ).data.acceptedRequestId is string
+              && getAfter(
+                appointmentRef(resource.data.appointmentId)
+              ).data.acceptedRequestId != ""
+            )
+          )
+        );
+    }
+
+
+    // =========================================================
+    // APPOINTMENT AVAILABILITY
+    // =========================================================
+
+    match /appointment_availability/{availabilityId} {
+
+      // -------------------------------------------------------
+      // READ
+      // -------------------------------------------------------
+
+      // This collection is the privacy-safe customer projection.
+      allow read: if
+        isUser()
+        || (
+          isSalon()
+          && resource.data.salonId
+             == currentUser().data.salonId
+        );
+
+
+      // -------------------------------------------------------
+      // CREATE
+      // -------------------------------------------------------
+
+      allow create: if
+        signedIn()
+        && request.resource.data.salonId is string
+        && request.resource.data.salonId != ""
+        && request.resource.data.employeeId is string
+        && request.resource.data.employeeId != ""
+        && request.resource.data.start is timestamp
+
+        && existsAfter(
+          slotRef(availabilityId)
+        )
+
+        && getAfter(
+          slotRef(availabilityId)
+        ).data.salonId
+           == request.resource.data.salonId
+
+        && getAfter(
+          slotRef(availabilityId)
+        ).data.employeeId
+           == request.resource.data.employeeId
+
+        && getAfter(
+          slotRef(availabilityId)
+        ).data.start
+           == request.resource.data.start
+
+        && (
+          isSalon()
+          || (
+            isUser()
+            && getAfter(
+              slotRef(availabilityId)
+            ).data.userId == request.auth.uid
+          )
+        );
+
+
+      // -------------------------------------------------------
+      // UPDATE
+      // -------------------------------------------------------
+
+      allow update: if
+        request.resource.data.salonId is string
+        && request.resource.data.employeeId is string
+        && request.resource.data.start is timestamp
+
+        && existsAfter(
+          slotRef(availabilityId)
+        )
+
+        && getAfter(
+          slotRef(availabilityId)
+        ).data.salonId
+           == request.resource.data.salonId
+
+        && getAfter(
+          slotRef(availabilityId)
+        ).data.employeeId
+           == request.resource.data.employeeId
+
+        && getAfter(
+          slotRef(availabilityId)
+        ).data.start
+           == request.resource.data.start
+
+        && (
+          isSalon()
+          || (
+            isUser()
+            && getAfter(
+              slotRef(availabilityId)
+            ).data.userId == request.auth.uid
+            && request.resource.data.diff(resource.data)
+              .affectedKeys()
+              .hasOnly([
+                "salonId",
+                "employeeId",
+                "start"
+              ])
+          )
+        );
+
+
+      // -------------------------------------------------------
+      // DELETE
+      // -------------------------------------------------------
+
+      allow delete: if
+        (
+          isSalon()
+          && resource.data.salonId
+             == currentUser().data.salonId
+        )
+        ||
+        (
+          isUser()
+          && !existsAfter(
+            slotRef(availabilityId)
+          )
+          && get(
+            slotRef(availabilityId)
+          ).data.userId == request.auth.uid
+        );
     }
 
 

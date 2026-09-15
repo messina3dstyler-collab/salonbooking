@@ -10,7 +10,7 @@ class AppointmentRepository {
   final FirebaseFirestore _firestore;
 
   late final AppointmentAvailabilityRepository _availabilityRepository =
-      AppointmentAvailabilityRepository(_firestore);
+  AppointmentAvailabilityRepository(_firestore);
 
   CollectionReference<Map<String, dynamic>> get _appointments =>
       _firestore.collection('appointments');
@@ -106,12 +106,13 @@ class AppointmentRepository {
   /// La prenotazione viene considerata riuscita solo se:
   ///
   /// 1. l'Appointment non esiste già;
-  /// 2. tutti gli slot necessari sono liberi;
+  /// 2. tutti gli slot necessari vengono riservati;
   /// 3. tutti i documenti degli slot vengono creati;
   /// 4. l'Appointment viene creato nella stessa transazione.
   ///
-  /// Se anche un solo slot è già occupato, l'intera operazione
-  /// fallisce e non viene creato alcun Appointment.
+  /// Il controllo di collisione sugli slot viene demandato alle
+  /// Firestore Security Rules, che verificano lo stato atomico
+  /// della Transaction tramite getAfter().
   Future<void> createAppointmentAtomically({
     required AppointmentModel appointment,
   }) async {
@@ -136,17 +137,6 @@ class AppointmentRepository {
           throw StateError(
             'L\'Appointment "${appointment.id}" esiste già.',
           );
-        }
-
-        for (final slotRef in slotRefs) {
-          final snapshot =
-          await transaction.get(slotRef);
-
-          if (snapshot.exists) {
-            throw StateError(
-              'L\'orario richiesto non è più disponibile.',
-            );
-          }
         }
 
         // ==================================================
@@ -265,6 +255,11 @@ class AppointmentRepository {
   /// Implementazione comune dell'aggiornamento atomico completo.
   ///
   /// Tutte le letture vengono eseguite prima delle scritture.
+  ///
+  /// La collisione degli slot non viene più verificata tramite
+  /// letture client dei documenti appointment_slots.
+  /// La consistenza viene garantita dalle Firestore Security Rules
+  /// sulla Transaction.
   Future<void> _updateAppointmentAtomicallyInTransaction({
     required AppointmentModel appointment,
     required Transaction transaction,
@@ -326,48 +321,6 @@ class AppointmentRepository {
     );
 
     // ==================================================
-    // READ SLOT
-    // ==================================================
-
-    final allSlotRefs = _uniqueSlotRefs([
-      ...oldSlotRefs,
-      ...newSlotRefs,
-    ]);
-
-    final slotSnapshots =
-    <String, DocumentSnapshot<Map<String, dynamic>>>{};
-
-    for (final slotRef in allSlotRefs) {
-      slotSnapshots[slotRef.path] =
-      await transaction.get(slotRef);
-    }
-
-    // ==================================================
-    // CONTROLLO NUOVI SLOT
-    // ==================================================
-
-    for (final slotRef in newSlotRefs) {
-      final snapshot =
-      slotSnapshots[slotRef.path]!;
-
-      if (!snapshot.exists) {
-        continue;
-      }
-
-      final data = snapshot.data();
-
-      final ownerAppointmentId =
-      data?['appointmentId'];
-
-      if (ownerAppointmentId != appointment.id) {
-        throw StateError(
-          'Uno degli orari richiesti '
-              'non è più disponibile.',
-        );
-      }
-    }
-
-    // ==================================================
     // WRITE APPOINTMENT
     // ==================================================
 
@@ -407,36 +360,6 @@ class AppointmentRepository {
       index++) {
         final slotRef = newSlotRefs[index];
 
-        final snapshot =
-        slotSnapshots[slotRef.path]!;
-
-        if (snapshot.exists) {
-          final data = snapshot.data();
-
-          final ownerAppointmentId =
-          data?['appointmentId'];
-
-          if (ownerAppointmentId == appointment.id) {
-            transaction.set(
-              slotRef,
-              {
-                'appointmentId': appointment.id,
-                'userId': appointment.userId,
-                'salonId': appointment.salonId,
-                'employeeId': appointment.employeeId,
-                'start': Timestamp.fromDate(
-                  slotStarts[index],
-                ),
-                'createdAt':
-                data?['createdAt'] ??
-                    createdAt,
-              },
-            );
-
-            continue;
-          }
-        }
-
         transaction.set(
           slotRef,
           {
@@ -465,6 +388,11 @@ class AppointmentRepository {
   ///
   /// Questo è il punto di integrazione utilizzato dal workflow
   /// Request → Appointment.
+  ///
+  /// La collisione degli slot non viene più verificata tramite
+  /// letture client dei documenti appointment_slots.
+  /// La consistenza viene garantita dalle Firestore Security Rules
+  /// sulla Transaction.
   Future<void> _updateAppointmentPatchInTransaction({
     required String appointmentId,
     required DocumentReference<Map<String, dynamic>> appointmentRef,
@@ -548,48 +476,6 @@ class AppointmentRepository {
     );
 
     // ==================================================
-    // READ SLOT
-    // ==================================================
-
-    final allSlotRefs = _uniqueSlotRefs([
-      ...oldSlotRefs,
-      ...newSlotRefs,
-    ]);
-
-    final slotSnapshots =
-    <String, DocumentSnapshot<Map<String, dynamic>>>{};
-
-    for (final slotRef in allSlotRefs) {
-      slotSnapshots[slotRef.path] =
-      await transaction.get(slotRef);
-    }
-
-    // ==================================================
-    // CONTROLLO NUOVI SLOT
-    // ==================================================
-
-    for (final slotRef in newSlotRefs) {
-      final snapshot =
-      slotSnapshots[slotRef.path]!;
-
-      if (!snapshot.exists) {
-        continue;
-      }
-
-      final data = snapshot.data();
-
-      final ownerAppointmentId =
-      data?['appointmentId'];
-
-      if (ownerAppointmentId != appointmentId) {
-        throw StateError(
-          'Uno degli orari richiesti '
-              'non è più disponibile.',
-        );
-      }
-    }
-
-    // ==================================================
     // WRITE APPOINTMENT
     // ==================================================
 
@@ -628,37 +514,6 @@ class AppointmentRepository {
       index < newSlotRefs.length;
       index++) {
         final slotRef = newSlotRefs[index];
-
-        final snapshot =
-        slotSnapshots[slotRef.path]!;
-
-        if (snapshot.exists) {
-          final data = snapshot.data();
-
-          final ownerAppointmentId =
-          data?['appointmentId'];
-
-          if (ownerAppointmentId == appointmentId) {
-            transaction.set(
-              slotRef,
-              {
-                'appointmentId': appointmentId,
-                'userId': updatedAppointment.userId,
-                'salonId': updatedAppointment.salonId,
-                'employeeId':
-                updatedAppointment.employeeId,
-                'start': Timestamp.fromDate(
-                  slotStarts[index],
-                ),
-                'createdAt':
-                data?['createdAt'] ??
-                    createdAt,
-              },
-            );
-
-            continue;
-          }
-        }
 
         transaction.set(
           slotRef,
