@@ -33,7 +33,14 @@ class _AdminHomePageState extends ConsumerState<AdminHomePage> {
   @override
   void initState() {
     super.initState();
-    _syncSalonId();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+
+      _syncSalonId();
+    });
   }
 
   @override
@@ -41,7 +48,13 @@ class _AdminHomePageState extends ConsumerState<AdminHomePage> {
     super.didUpdateWidget(oldWidget);
 
     if (oldWidget.salonId != widget.salonId) {
-      _syncSalonId();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
+
+        _syncSalonId();
+      });
     }
   }
 

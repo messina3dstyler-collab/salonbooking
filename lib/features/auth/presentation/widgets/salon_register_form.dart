@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../app/constants/app_routes.dart';
 import '../../../../app/theme/theme.dart';
 import '../../auth_providers.dart';
 import 'salon_account_section.dart';
@@ -115,6 +117,8 @@ class _SalonRegisterFormState
         ),
       ),
     );
+
+    context.go(AppRoutes.splash);
   }
 
   @override

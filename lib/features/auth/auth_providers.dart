@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../salon/salon_providers.dart';
 import '../user/user_providers.dart';
 import 'controller/login_controller.dart';
 import 'controller/register_controller.dart';
@@ -36,11 +36,17 @@ final registerServiceProvider = Provider<RegisterService>(
   ),
 );
 
-final salonRegistrationServiceProvider = Provider<SalonRegistrationService>(
+final salonRegistrationFunctionsProvider = Provider<FirebaseFunctions>(
+      (ref) => FirebaseFunctions.instanceFor(
+    region: 'europe-west12',
+  ),
+);
+
+final salonRegistrationServiceProvider =
+Provider<SalonRegistrationService>(
       (ref) => SalonRegistrationService(
     ref.read(authServiceProvider),
-    ref.read(userRepositoryProvider),
-    ref.read(salonRepositoryProvider),
+    ref.read(salonRegistrationFunctionsProvider),
   ),
 );
 
@@ -50,7 +56,8 @@ final loginControllerProvider = ChangeNotifierProvider<LoginController>(
   ),
 );
 
-final registerControllerProvider = ChangeNotifierProvider<RegisterController>(
+final registerControllerProvider =
+ChangeNotifierProvider<RegisterController>(
       (ref) => RegisterController(
     ref.read(registerServiceProvider),
   ),

@@ -1,22 +1,15 @@
-import 'package:firebase_auth/firebase_auth.dart';
-
-import '../../salon/models/salon_model.dart';
-import '../../salon/repositories/salon_repository.dart';
-import '../../user/models/user_model.dart';
-import '../../user/repositories/user_repository.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
 import 'auth_service.dart';
 
 class SalonRegistrationService {
   SalonRegistrationService(
       this._authService,
-      this._userRepository,
-      this._salonRepository,
+      this._functions,
       );
 
   final AuthService _authService;
-  final UserRepository _userRepository;
-  final SalonRepository _salonRepository;
+  final FirebaseFunctions _functions;
 
   Future<void> register({
     required String ownerName,
@@ -45,106 +38,86 @@ class SalonRegistrationService {
       closedWeekdays: closedWeekdays,
     );
 
-    User? firebaseUser;
-    String? salonId;
-    bool salonCreated = false;
+    // =========================================================
+    // 1. CREA ACCOUNT FIREBASE AUTH
+    // =========================================================
+    //
+    // L'account Auth deve esistere prima della Callable perché
+    // registerSalon utilizza request.auth.uid come identità
+    // autorevole del nuovo titolare.
+    //
+    // Il client NON sceglie:
+    // - uid
+    // - role
+    // - salonId
+    //
+    // Questi valori vengono determinati dalla Cloud Function.
+    // =========================================================
 
-    try {
-      // =========================================================
-      // 1. CREA ACCOUNT FIREBASE AUTH
-      // =========================================================
+    await _authService.register(
+      email: email,
+      password: password,
+    );
 
-      await _authService.register(
-        email: email,
-        password: password,
-      );
+    // =========================================================
+    // 2. PROVISIONING TRUSTED SERVER-SIDE
+    // =========================================================
+    //
+    // La Cloud Function crea in una singola transaction:
+    //
+    //   salons/{uid}
+    //   users/{uid}
+    //
+    // con:
+    //
+    //   users/{uid}.role    = "admin"
+    //   users/{uid}.salonId = uid
+    //
+    // Il client invia solamente i dati della registrazione.
+    //
+    // NON viene eseguito alcun createSalon/createUser
+    // direttamente dal client.
+    // =========================================================
 
-      firebaseUser = FirebaseAuth.instance.currentUser;
+    final callable = _functions.httpsCallable(
+      'registerSalon',
+    );
 
-      if (firebaseUser == null) {
-        throw Exception(
-          'Utente Firebase non trovato dopo la registrazione.',
-        );
-      }
+    await callable.call(<String, dynamic>{
+      'ownerName': ownerName.trim(),
+      'salonName': salonName.trim(),
+      'email': email.trim(),
+      'phone': phone.trim(),
+      'address': address.trim(),
+      'city': city.trim(),
+      'description': description.trim(),
+      'taxIdType': taxIdType,
+      'taxId': taxId.trim(),
+      'openingHour': openingHour,
+      'closingHour': closingHour,
+      'closedWeekdays': List<int>.from(closedWeekdays),
+    });
 
-      salonId = firebaseUser.uid;
-
-      // =========================================================
-      // 2. CREA DOCUMENTO SALON
-      // =========================================================
-
-      final salon = SalonModel(
-        id: salonId,
-        name: salonName.trim(),
-        address: address.trim(),
-        city: city.trim(),
-        imageUrl: '',
-        rating: 0,
-        reviewCount: 0,
-        phone: phone.trim(),
-        description: description.trim(),
-        openingHour: openingHour,
-        closingHour: closingHour,
-        closedWeekdays: List<int>.from(closedWeekdays),
-        closedDates: const [],
-        active: true,
-        taxIdType: taxIdType,
-        taxId: taxId.trim(),
-      );
-
-      await _salonRepository.createSalon(salon);
-      salonCreated = true;
-
-      // =========================================================
-      // 3. CREA DOCUMENTO USER
-      // =========================================================
-
-      final user = UserModel(
-        id: salonId,
-        name: ownerName.trim(),
-        email: email.trim(),
-        phone: phone.trim(),
-        role: 'admin',
-        salonId: salonId,
-        createdAt: DateTime.now(),
-      );
-
-      await _userRepository.createUser(user);
-
-      // =========================================================
-      // REGISTRAZIONE COMPLETATA
-      // =========================================================
-    } catch (e) {
-      // =========================================================
-      // CLEANUP
-      // =========================================================
-      //
-      // Il Salon viene eliminato solamente se la sua creazione
-      // è realmente andata a buon fine.
-      //
-      // La delete del documento users/{uid} NON viene effettuata
-      // dal client perché le Firestore Rules la vietano.
-      // =========================================================
-
-      if (salonCreated && salonId != null) {
-        try {
-          await _salonRepository.deleteSalon(salonId);
-        } catch (_) {
-          // Il cleanup del Salon non deve nascondere
-          // l'errore originale della registrazione.
-        }
-      }
-
-      // Rimuove l'account Firebase creato durante questa
-      // procedura.
-      try {
-        await firebaseUser?.delete();
-      } catch (_) {
-        // Manteniamo l'errore originale.
-      }
-
-      rethrow;
-    }
+    // =========================================================
+    // REGISTRAZIONE COMPLETATA
+    // =========================================================
+    //
+    // Nessun cleanup automatico dell'account Firebase Auth.
+    //
+    // Questo è intenzionale:
+    //
+    // se la transaction server-side fosse stata completata ma
+    // la risposta della Callable fosse andata persa per un
+    // problema di rete, cancellare Firebase Auth dal client
+    // potrebbe lasciare:
+    //
+    //   users/{uid}  -> esistente
+    //   salons/{uid} -> esistente
+    //   Auth         -> eliminato
+    //
+    // La Cloud Function è invece idempotente e rifiuta un
+    // secondo provisioning quando i documenti esistono già.
+    // =========================================================
   }
 
   void _validateRegistrationData({

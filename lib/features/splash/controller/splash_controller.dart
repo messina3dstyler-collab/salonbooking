@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../../app/constants/app_routes.dart';
 
@@ -21,19 +22,42 @@ class SplashController {
 
     final firebaseUser = FirebaseAuth.instance.currentUser;
 
+    debugPrint(
+      'SPLASH -> FirebaseAuth.currentUser: '
+          '${firebaseUser?.uid ?? 'NULL'}',
+    );
+
     if (firebaseUser == null) {
+      debugPrint(
+        'SPLASH -> Nessun utente autenticato. '
+            'Navigazione verso login.',
+      );
+
       return const SplashNavigationResult(
         route: AppRoutes.login,
       );
     }
 
     try {
+      debugPrint(
+        'SPLASH -> Lettura users/${firebaseUser.uid}',
+      );
+
       final userDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(firebaseUser.uid)
           .get();
 
+      debugPrint(
+        'SPLASH -> Firestore user document exists: '
+            '${userDoc.exists}',
+      );
+
       if (!userDoc.exists) {
+        debugPrint(
+          'SPLASH -> Profilo utente non trovato.',
+        );
+
         return const SplashNavigationResult(
           route: AppRoutes.login,
         );
@@ -41,15 +65,33 @@ class SplashController {
 
       final data = userDoc.data()!;
 
+      debugPrint(
+        'SPLASH -> User data: $data',
+      );
+
       final role = data['role'] as String? ?? 'customer';
       final salonId = data['salonId'] as String?;
 
+      debugPrint(
+        'SPLASH -> role=$role, salonId=$salonId',
+      );
+
       if (role == 'admin') {
         if (salonId == null || salonId.isEmpty) {
+          debugPrint(
+            'SPLASH -> Admin senza salonId. '
+                'Navigazione verso login.',
+          );
+
           return const SplashNavigationResult(
             route: AppRoutes.login,
           );
         }
+
+        debugPrint(
+          'SPLASH -> Admin valido. '
+              'Navigazione verso ${AppRoutes.adminHome}',
+        );
 
         return SplashNavigationResult(
           route: AppRoutes.adminHome,
@@ -57,10 +99,23 @@ class SplashController {
         );
       }
 
+      debugPrint(
+        'SPLASH -> Customer valido. '
+            'Navigazione verso ${AppRoutes.home}',
+      );
+
       return const SplashNavigationResult(
         route: AppRoutes.home,
       );
-    } catch (_) {
+    } catch (e, stackTrace) {
+      debugPrint(
+        'SPLASH -> ERRORE FIRESTORE/AUTH: $e',
+      );
+
+      debugPrintStack(
+        stackTrace: stackTrace,
+      );
+
       return const SplashNavigationResult(
         route: AppRoutes.login,
       );
