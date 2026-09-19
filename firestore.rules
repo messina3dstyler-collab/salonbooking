@@ -156,11 +156,8 @@ service cloud.firestore {
 
       allow create: if
       isOwnUser(userId)
-      && request.resource.data.role is string
-      && (
-        request.resource.data.role == "admin"
-        || request.resource.data.role == "customer"
-      );
+      && request.resource.data.role == "customer"
+      && request.resource.data.salonId == null;
 
 
       // -------------------------------------------------------
@@ -202,9 +199,7 @@ service cloud.firestore {
       // CREATE
       // -------------------------------------------------------
 
-      allow create: if
-      signedIn()
-      && request.auth.uid == salonId;
+      allow create: if false;
 
 
       // -------------------------------------------------------
@@ -212,26 +207,24 @@ service cloud.firestore {
       // -------------------------------------------------------
 
       allow update: if
-      ownsSalon(salonId)
-      && request.resource.data.diff(resource.data)
-        .affectedKeys()
-        .hasOnly([
-        "name",
-        "address",
-        "city",
-        "imageUrl",
-        "rating",
-        "reviewCount",
-        "phone",
-        "description",
-        "openingHour",
-        "closingHour",
-        "closedWeekdays",
-        "closedDates",
-        "active",
-        "taxIdType",
-        "taxId"
-      ]);
+        ownsSalon(salonId)
+        && request.resource.data.diff(resource.data)
+          .affectedKeys()
+          .hasOnly([
+            "name",
+            "address",
+            "city",
+            "imageUrl",
+            "rating",
+            "reviewCount",
+            "phone",
+            "description",
+            "openingHour",
+            "closingHour",
+            "closedWeekdays",
+            "closedDates",
+            "active"
+          ]);
 
 
       // -------------------------------------------------------
@@ -1584,6 +1577,10 @@ service cloud.firestore {
     // DEFAULT DENY
     // =========================================================
 
+    match /salon_private/{salonId} {
+      allow read: if ownsSalon(salonId);
+      allow write: if false;
+    }
     match /{document=**} {
       allow read, write: if false;
     }

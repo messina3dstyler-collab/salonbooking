@@ -239,6 +239,10 @@ exports.registerSalon = onCall(async (request) => {
     .collection('salons')
     .doc(uid);
 
+  const privateSalonRef = db
+    .collection('salon_private')
+    .doc(uid);
+
   const userRef = db
     .collection('users')
     .doc(uid);
@@ -248,11 +252,15 @@ exports.registerSalon = onCall(async (request) => {
       const salonSnapshot =
         await transaction.get(salonRef);
 
+      const privateSalonSnapshot =
+        await transaction.get(privateSalonRef);
+
       const userSnapshot =
         await transaction.get(userRef);
 
       if (
         salonSnapshot.exists ||
+        privateSalonSnapshot.exists ||
         userSnapshot.exists
       ) {
         throw new HttpsError(
@@ -275,6 +283,10 @@ exports.registerSalon = onCall(async (request) => {
         closedWeekdays: data.closedWeekdays,
         closedDates: [],
         active: true,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+
+      transaction.create(privateSalonRef, {
         taxIdType: data.taxIdType,
         taxId: data.taxId,
         createdAt: FieldValue.serverTimestamp(),
