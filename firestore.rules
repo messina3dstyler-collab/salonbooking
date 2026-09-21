@@ -352,6 +352,7 @@ service cloud.firestore {
 
       allow read: if
         signedIn()
+        && resource != null
         && (
           (
             isUser()

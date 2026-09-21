@@ -52,12 +52,28 @@ class LoginService {
 
     final data = snapshot.data()!;
 
-    final role = data['role'] as String? ?? 'customer';
+    final roleValue = data['role'];
+
+    if (roleValue is! String || roleValue.isEmpty) {
+      throw Exception('Profilo utente con ruolo non valido.');
+    }
+
+    final role = roleValue;
     final salonId = data['salonId'] as String?;
+
+    if (role != 'customer' && role != 'admin') {
+      throw Exception('Profilo utente con ruolo non valido.');
+    }
 
     if (role == 'admin' &&
         (salonId == null || salonId.isEmpty)) {
       throw Exception('Admin senza salonId associato.');
+    }
+
+    if (role == 'customer' &&
+        salonId != null &&
+        salonId.isNotEmpty) {
+      throw Exception('Customer con salonId non valido.');
     }
 
     return LoginResult(

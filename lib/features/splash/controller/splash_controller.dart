@@ -69,12 +69,36 @@ class SplashController {
         'SPLASH -> User data: $data',
       );
 
-      final role = data['role'] as String? ?? 'customer';
+      final roleValue = data['role'];
+
+      if (roleValue is! String || roleValue.isEmpty) {
+        debugPrint(
+          'SPLASH -> Profilo utente con ruolo non valido. '
+              'Navigazione verso login.',
+        );
+
+        return const SplashNavigationResult(
+          route: AppRoutes.login,
+        );
+      }
+
+      final role = roleValue;
       final salonId = data['salonId'] as String?;
 
       debugPrint(
         'SPLASH -> role=$role, salonId=$salonId',
       );
+
+      if (role != 'customer' && role != 'admin') {
+        debugPrint(
+          'SPLASH -> Ruolo utente non riconosciuto. '
+              'Navigazione verso login.',
+        );
+
+        return const SplashNavigationResult(
+          route: AppRoutes.login,
+        );
+      }
 
       if (role == 'admin') {
         if (salonId == null || salonId.isEmpty) {
@@ -96,6 +120,17 @@ class SplashController {
         return SplashNavigationResult(
           route: AppRoutes.adminHome,
           extra: salonId,
+        );
+      }
+
+      if (salonId != null && salonId.isNotEmpty) {
+        debugPrint(
+          'SPLASH -> Customer con salonId non valido. '
+              'Navigazione verso login.',
+        );
+
+        return const SplashNavigationResult(
+          route: AppRoutes.login,
         );
       }
 
