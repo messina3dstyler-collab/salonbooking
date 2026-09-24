@@ -19,9 +19,11 @@ class RequestDetailsSheet extends StatelessWidget {
     required this.timeline,
     required this.customerName,
     required this.appointmentTitle,
-        this.onSend,
+    this.onSend,
     this.onRemind,
     this.onCancel,
+    this.onAccept,
+    this.onReject,
     this.onOpenAppointment,
     this.onCreateNewProposal,
   });
@@ -34,6 +36,8 @@ class RequestDetailsSheet extends StatelessWidget {
   final VoidCallback? onSend;
   final VoidCallback? onRemind;
   final VoidCallback? onCancel;
+  final VoidCallback? onAccept;
+  final VoidCallback? onReject;
   final VoidCallback? onOpenAppointment;
   final VoidCallback? onCreateNewProposal;
 
@@ -43,9 +47,11 @@ class RequestDetailsSheet extends StatelessWidget {
         required List<RequestTimelineEvent> timeline,
         required String customerName,
         required String appointmentTitle,
-                VoidCallback? onSend,
+        VoidCallback? onSend,
         VoidCallback? onRemind,
         VoidCallback? onCancel,
+        VoidCallback? onAccept,
+        VoidCallback? onReject,
         VoidCallback? onOpenAppointment,
         VoidCallback? onCreateNewProposal,
       }) {
@@ -61,6 +67,8 @@ class RequestDetailsSheet extends StatelessWidget {
         onSend: onSend,
         onRemind: onRemind,
         onCancel: onCancel,
+        onAccept: onAccept,
+        onReject: onReject,
         onOpenAppointment: onOpenAppointment,
         onCreateNewProposal: onCreateNewProposal,
       ),
@@ -72,10 +80,10 @@ class RequestDetailsSheet extends StatelessWidget {
         onSend: onSend,
         onRemind: onRemind,
         onCancel: onCancel,
-        onOpenAppointment:
-        onOpenAppointment,
-        onCreateNewProposal:
-        onCreateNewProposal,
+        onAccept: onAccept,
+        onReject: onReject,
+        onOpenAppointment: onOpenAppointment,
+        onCreateNewProposal: onCreateNewProposal,
       ),
     );
   }
@@ -85,8 +93,7 @@ class RequestDetailsSheet extends StatelessWidget {
     final display = request.display;
 
     return Column(
-      crossAxisAlignment:
-      CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
@@ -101,15 +108,12 @@ class RequestDetailsSheet extends StatelessWidget {
             ),
           ],
         ),
-
         const SizedBox(height: 20),
-
         Card(
           elevation: 0,
           color: Colors.grey.shade50,
           child: Padding(
-            padding:
-            const EdgeInsets.all(18),
+            padding: const EdgeInsets.all(18),
             child: Column(
               children: [
                 Row(
@@ -123,23 +127,17 @@ class RequestDetailsSheet extends StatelessWidget {
                       child: Text(
                         display.description,
                         style: TextStyle(
-                          color: Colors
-                              .grey.shade700,
-                          fontWeight:
-                          FontWeight.w600,
+                          color: Colors.grey.shade700,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 18),
-
                 ListTile(
-                  contentPadding:
-                  EdgeInsets.zero,
-                  leading:
-                  const CircleAvatar(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const CircleAvatar(
                     child: Icon(
                       Icons.person,
                     ),
@@ -151,98 +149,66 @@ class RequestDetailsSheet extends StatelessWidget {
                     appointmentTitle,
                   ),
                 ),
-
                 const Divider(
                   height: 28,
                 ),
-
                 RequestInfoTile(
                   icon: Icons.store,
                   label: "Salone",
-                  value:
-                  request.salonName
-                      .isEmpty
+                  value: request.salonName.isEmpty
                       ? "-"
-                      : request
-                      .salonName,
+                      : request.salonName,
                 ),
-
                 RequestInfoTile(
-                  icon:
-                  Icons.person_outline,
+                  icon: Icons.person_outline,
                   label: "Creata da",
-                  value: request
-                      .createdByName
-                      .isNotEmpty
-                      ? request
-                      .createdByName
-                      : switch (request
-                      .createdBy) {
-                    RequestAuthor
-                        .admin =>
+                  value: request.createdByName.isNotEmpty
+                      ? request.createdByName
+                      : switch (request.createdBy) {
+                    RequestAuthor.admin =>
                     "Amministratore",
-                    RequestAuthor
-                        .employee =>
+                    RequestAuthor.employee =>
                     "Operatore",
-                    RequestAuthor
-                        .customer =>
+                    RequestAuthor.customer =>
                     "Cliente",
-                    RequestAuthor
-                        .system =>
+                    RequestAuthor.system =>
                     "Sistema",
                   },
                 ),
-
                 RequestInfoTile(
-                  icon:
-                  Icons.flag_outlined,
+                  icon: Icons.flag_outlined,
                   label: "Priorità",
-                  value:
-                  switch (request
-                      .priority) {
-                    RequestPriority.low =>
-                    "Bassa",
-                    RequestPriority
-                        .normal =>
-                    "Normale",
-                    RequestPriority.high =>
-                    "Alta",
-                    RequestPriority
-                        .urgent =>
-                    "Urgente",
+                  value: switch (request.priority) {
+                    RequestPriority.low => "Bassa",
+                    RequestPriority.normal => "Normale",
+                    RequestPriority.high => "Alta",
+                    RequestPriority.urgent => "Urgente",
                   },
                 ),
               ],
             ),
           ),
         ),
-
         const SizedBox(height: 28),
-
         RequestSection(
           title: "Dettagli proposta",
           child: RequestPayloadBuilder.build(request),
         ),
-
         const SizedBox(height: 28),
-
         RequestSection(
           title: "Cronologia",
           subtitle:
           "${timeline.length} evento${timeline.length == 1 ? "" : "i"}",
           child: timeline.isEmpty
               ? Padding(
-            padding:
-            const EdgeInsets
-                .symmetric(
+            padding: const EdgeInsets.symmetric(
               vertical: 24,
             ),
             child: Center(
               child: Text(
                 "Nessun evento disponibile.",
                 style: TextStyle(
-                  color: Colors
-                      .grey.shade600,
+                  color: Colors.grey.shade600,
                 ),
               ),
             ),
@@ -250,23 +216,18 @@ class RequestDetailsSheet extends StatelessWidget {
               : Column(
             children: timeline
                 .map(
-                  (event) =>
-                  Padding(
-                    padding:
-                    const EdgeInsets
-                        .only(
-                      bottom: 14,
-                    ),
-                    child:
-                    RequestTimelineTile(
-                      event: event,
-                    ),
-                  ),
+                  (event) => Padding(
+                padding: const EdgeInsets.only(
+                  bottom: 14,
+                ),
+                child: RequestTimelineTile(
+                  event: event,
+                ),
+              ),
             )
                 .toList(),
           ),
         ),
-
         const SizedBox(height: 40),
       ],
     );

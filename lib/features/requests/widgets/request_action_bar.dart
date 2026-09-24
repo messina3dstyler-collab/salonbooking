@@ -15,6 +15,8 @@ class RequestActionBar extends StatelessWidget {
     this.onSend,
     this.onRemind,
     this.onCancel,
+    this.onAccept,
+    this.onReject,
     this.onOpenAppointment,
     this.onCreateNewProposal,
   });
@@ -24,6 +26,8 @@ class RequestActionBar extends StatelessWidget {
   final VoidCallback? onSend;
   final VoidCallback? onRemind;
   final VoidCallback? onCancel;
+  final VoidCallback? onAccept;
+  final VoidCallback? onReject;
   final VoidCallback? onOpenAppointment;
   final VoidCallback? onCreateNewProposal;
 
@@ -93,6 +97,7 @@ class RequestActionBar extends StatelessWidget {
         return onCreateNewProposal;
 
       case AppointmentRequestStatus.pendingCustomer:
+      case AppointmentRequestStatus.pendingSalon:
       case AppointmentRequestStatus.cancelled:
         return null;
     }
@@ -110,6 +115,12 @@ class RequestActionBar extends StatelessWidget {
 
       case RequestActionType.cancel:
         return onCancel;
+
+      case RequestActionType.accept:
+        return onAccept;
+
+      case RequestActionType.reject:
+        return onReject;
 
       case RequestActionType.openAppointment:
         return onOpenAppointment;

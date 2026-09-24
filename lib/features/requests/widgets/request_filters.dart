@@ -75,14 +75,22 @@ class RequestFilters extends StatelessWidget {
     switch (status) {
       case AppointmentRequestStatus.draft:
         return "Bozza";
+
       case AppointmentRequestStatus.pendingCustomer:
         return "In attesa";
+
+      case AppointmentRequestStatus.pendingSalon:
+        return "In attesa del salone";
+
       case AppointmentRequestStatus.accepted:
         return "Accettate";
+
       case AppointmentRequestStatus.rejected:
         return "Rifiutate";
+
       case AppointmentRequestStatus.expired:
         return "Scadute";
+
       case AppointmentRequestStatus.cancelled:
         return "Annullate";
     }
@@ -92,12 +100,16 @@ class RequestFilters extends StatelessWidget {
     switch (type) {
       case AppointmentRequestType.reschedule:
         return "Orario";
+
       case AppointmentRequestType.changeEmployee:
         return "Operatore";
+
       case AppointmentRequestType.changeServices:
         return "Servizi";
+
       case AppointmentRequestType.cancelAppointment:
         return "Annullamento";
+
       case AppointmentRequestType.custom:
         return "Altro";
     }

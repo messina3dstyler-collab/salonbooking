@@ -22,6 +22,33 @@ class RequestStateValidator {
   }
 
   // --------------------------------------------------
+  // VALIDAZIONE CREAZIONE CANCELLAZIONE CLIENTE
+  // --------------------------------------------------
+
+  String? validateCustomerCancellationCreation(
+      AppointmentRequest request,
+      ) {
+    if (request.isArchived) {
+      return "Una nuova richiesta non può essere archiviata.";
+    }
+
+    if (request.createdBy != RequestAuthor.customer) {
+      return "La richiesta di cancellazione deve essere creata dal cliente.";
+    }
+
+    if (request.type != AppointmentRequestType.cancelAppointment) {
+      return "Il cliente può creare solamente richieste di cancellazione.";
+    }
+
+    if (request.status !=
+        AppointmentRequestStatus.pendingSalon) {
+      return "La richiesta di cancellazione deve essere in attesa del salone.";
+    }
+
+    return null;
+  }
+
+  // --------------------------------------------------
   // VALIDAZIONE ACCETTAZIONE
   // --------------------------------------------------
 
@@ -30,6 +57,12 @@ class RequestStateValidator {
       ) {
     if (request.isArchived) {
       return "Una richiesta archiviata non può essere accettata.";
+    }
+
+    if (request.status ==
+        AppointmentRequestStatus.pendingSalon &&
+        request.type != AppointmentRequestType.cancelAppointment) {
+      return "Solo una richiesta di cancellazione può essere accettata dal salone.";
     }
 
     return validateTransition(
@@ -47,6 +80,12 @@ class RequestStateValidator {
       ) {
     if (request.isArchived) {
       return "Una richiesta archiviata non può essere rifiutata.";
+    }
+
+    if (request.status ==
+        AppointmentRequestStatus.pendingSalon &&
+        request.type != AppointmentRequestType.cancelAppointment) {
+      return "Solo una richiesta di cancellazione può essere rifiutata dal salone.";
     }
 
     return validateTransition(
@@ -99,6 +138,20 @@ class RequestStateValidator {
         }
 
     // ------------------------------------------------
+    // PENDING SALON
+    // ------------------------------------------------
+
+      case AppointmentRequestStatus.pendingSalon:
+        switch (to) {
+          case AppointmentRequestStatus.accepted:
+          case AppointmentRequestStatus.rejected:
+            return null;
+
+          default:
+            return "Una richiesta in attesa del salone può essere solo accettata o rifiutata.";
+        }
+
+    // ------------------------------------------------
     // STATI FINALI
     // ------------------------------------------------
 
@@ -132,6 +185,7 @@ class RequestStateValidator {
 
       case AppointmentRequestStatus.draft:
       case AppointmentRequestStatus.pendingCustomer:
+      case AppointmentRequestStatus.pendingSalon:
         return false;
     }
   }

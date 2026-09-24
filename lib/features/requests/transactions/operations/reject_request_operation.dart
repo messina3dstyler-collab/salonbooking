@@ -11,6 +11,37 @@ class RejectRequestOperation extends RequestTransactionOperation {
   Future<void> execute(
       AppointmentRequest request,
       ) async {
+    //--------------------------------------------------
+    // REQUEST STATE
+    //--------------------------------------------------
+
+    final isPendingCustomer =
+        request.status ==
+            AppointmentRequestStatus.pendingCustomer;
+
+    final isPendingSalonCancellation =
+        request.status ==
+            AppointmentRequestStatus.pendingSalon &&
+            request.type ==
+                AppointmentRequestType.cancelAppointment;
+
+    if (!isPendingCustomer &&
+        !isPendingSalonCancellation) {
+      throw StateError(
+        "La Request '${request.id}' non è più pendente.",
+      );
+    }
+
+    if (request.id.trim().isEmpty) {
+      throw StateError(
+        "La Request non contiene un id valido.",
+      );
+    }
+
+    //--------------------------------------------------
+    // UPDATE REQUEST
+    //--------------------------------------------------
+
     final now = DateTime.now();
 
     final updated = request.copyWith(
@@ -23,13 +54,21 @@ class RejectRequestOperation extends RequestTransactionOperation {
       updated.id,
     );
 
+    //--------------------------------------------------
+    // TIMELINE
+    //--------------------------------------------------
+
     final event = RequestTimelineEvent(
       id: now.microsecondsSinceEpoch.toString(),
       requestId: updated.id,
       type: RequestTimelineEventType.rejected,
       createdAt: now,
-      author: RequestTimelineAuthor.customer,
-      message: "Il cliente ha rifiutato la proposta.",
+      author: isPendingSalonCancellation
+          ? RequestTimelineAuthor.admin
+          : RequestTimelineAuthor.customer,
+      message: isPendingSalonCancellation
+          ? "La richiesta di cancellazione è stata rifiutata dal salone."
+          : "Il cliente ha rifiutato la proposta.",
     );
 
     createTimelineEvent(

@@ -77,7 +77,7 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
   }
 
   void _openRequests() {
-    ref.read(requestControllerProvider).bindPending(
+    ref.read(requestControllerProvider).bindSalonRequests(
       widget.salonId,
     );
 

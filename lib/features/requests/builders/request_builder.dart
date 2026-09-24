@@ -12,8 +12,8 @@ import '../models/payloads/custom_request_payload.dart';
 
 class RequestBuilder {
   RequestBuilder._(
-    this._appointment,
-  );
+      this._appointment,
+      );
 
   static const Uuid _uuid = Uuid();
 
@@ -24,8 +24,8 @@ class RequestBuilder {
   //--------------------------------------------------
 
   static RequestBuilder fromAppointment(
-    AppointmentModel appointment,
-  ) {
+      AppointmentModel appointment,
+      ) {
     return RequestBuilder._(
       appointment,
     );
@@ -39,10 +39,10 @@ class RequestBuilder {
       _appointment.appointmentDate;
 
   DateTime get _end => _start.add(
-        Duration(
-          minutes: _appointment.duration,
-        ),
-      );
+    Duration(
+      minutes: _appointment.duration,
+    ),
+  );
 
   //--------------------------------------------------
   // RESCHEDULE
@@ -56,7 +56,7 @@ class RequestBuilder {
         RequestPriority.normal,
   }) {
     final payload =
-        RescheduleRequestPayload(
+    RescheduleRequestPayload(
       oldStart: _start,
       newStart: newStart,
 
@@ -64,18 +64,18 @@ class RequestBuilder {
       newEnd: newEnd,
 
       oldEmployeeId:
-          _appointment.employeeId,
+      _appointment.employeeId,
 
       newEmployeeId:
-          _appointment.employeeId,
+      _appointment.employeeId,
 
       message: message,
     );
 
     return _build(
       type:
-          AppointmentRequestType
-              .reschedule,
+      AppointmentRequestType
+          .reschedule,
       priority: priority,
       payload: payload.toMap(),
     );
@@ -93,27 +93,27 @@ class RequestBuilder {
         RequestPriority.normal,
   }) {
     final payload =
-        EmployeeRequestPayload(
+    EmployeeRequestPayload(
       oldEmployeeId:
-          _appointment.employeeId,
+      _appointment.employeeId,
 
       newEmployeeId: employeeId,
 
       oldEmployeeName:
-          _appointment.employeeName,
+      _appointment.employeeName,
 
       newEmployeeName:
-          employeeName,
+      employeeName,
 
       appointmentStart: _start,
 
       appointmentEnd: _end,
 
       serviceId:
-          _appointment.serviceId,
+      _appointment.serviceId,
 
       serviceName:
-          _appointment.serviceName,
+      _appointment.serviceName,
 
       employeeAvailable: true,
 
@@ -122,8 +122,8 @@ class RequestBuilder {
 
     return _build(
       type:
-          AppointmentRequestType
-              .changeEmployee,
+      AppointmentRequestType
+          .changeEmployee,
       priority: priority,
       payload: payload.toMap(),
     );
@@ -132,6 +132,7 @@ class RequestBuilder {
   //--------------------------------------------------
   // CHANGE SERVICES
   //--------------------------------------------------
+
   AppointmentRequest changeServices({
     required List<String> serviceIds,
     required List<String> serviceNames,
@@ -142,7 +143,7 @@ class RequestBuilder {
         RequestPriority.normal,
   }) {
     final payload =
-        ServicesRequestPayload(
+    ServicesRequestPayload(
       oldServiceIds: [
         _appointment.serviceId,
       ],
@@ -156,37 +157,37 @@ class RequestBuilder {
       newServiceNames: serviceNames,
 
       oldTotalPrice:
-          _appointment.price,
+      _appointment.price,
 
       newTotalPrice:
-          newTotalPrice,
+      newTotalPrice,
 
       oldDuration:
-          _appointment.duration,
+      _appointment.duration,
 
       newDuration:
-          newDuration,
+      newDuration,
 
       employeeId:
-          _appointment.employeeId,
+      _appointment.employeeId,
 
       employeeName:
-          _appointment.employeeName,
+      _appointment.employeeName,
 
       message: message,
     );
 
     return _build(
       type:
-          AppointmentRequestType
-              .changeServices,
+      AppointmentRequestType
+          .changeServices,
       priority: priority,
       payload: payload.toMap(),
     );
   }
 
   //--------------------------------------------------
-  // CANCEL
+  // CANCEL - SALONE
   //--------------------------------------------------
 
   AppointmentRequest cancel({
@@ -197,25 +198,25 @@ class RequestBuilder {
         RequestPriority.high,
   }) {
     final payload =
-        CancelRequestPayload(
+    CancelRequestPayload(
       appointmentStart: _start,
 
       appointmentEnd: _end,
 
       employeeId:
-          _appointment.employeeId,
+      _appointment.employeeId,
 
       employeeName:
-          _appointment.employeeName,
+      _appointment.employeeName,
 
       serviceId:
-          _appointment.serviceId,
+      _appointment.serviceId,
 
       serviceName:
-          _appointment.serviceName,
+      _appointment.serviceName,
 
       price:
-          _appointment.price,
+      _appointment.price,
 
       reason: reason,
 
@@ -226,9 +227,95 @@ class RequestBuilder {
 
     return _build(
       type:
-          AppointmentRequestType
-              .cancelAppointment,
+      AppointmentRequestType
+          .cancelAppointment,
       priority: priority,
+      payload: payload.toMap(),
+    );
+  }
+
+  //--------------------------------------------------
+  // CANCEL - CUSTOMER
+  //--------------------------------------------------
+
+  AppointmentRequest customerCancellation({
+    required String reason,
+    String? message,
+    bool refund = false,
+    RequestPriority priority =
+        RequestPriority.high,
+  }) {
+    final payload =
+    CancelRequestPayload(
+      appointmentStart: _start,
+
+      appointmentEnd: _end,
+
+      employeeId:
+      _appointment.employeeId,
+
+      employeeName:
+      _appointment.employeeName,
+
+      serviceId:
+      _appointment.serviceId,
+
+      serviceName:
+      _appointment.serviceName,
+
+      price:
+      _appointment.price,
+
+      reason: reason,
+
+      message: message,
+
+      refund: refund,
+    );
+
+    final now = DateTime.now();
+
+    return AppointmentRequest(
+      id: _uuid.v4(),
+
+      appointmentId:
+      _appointment.id,
+
+      salonId:
+      _appointment.salonId,
+
+      salonName:
+      _appointment.salonName,
+
+      customerId:
+      _appointment.userId,
+
+      customerName:
+      _appointment.customerName,
+
+      customerPhone:
+      _appointment.customerPhone,
+
+      createdBy:
+      RequestAuthor.customer,
+
+      createdByName:
+      _appointment.customerName,
+
+      priority: priority,
+
+      type:
+      AppointmentRequestType
+          .cancelAppointment,
+
+      status:
+      AppointmentRequestStatus
+          .pendingSalon,
+
+      createdAt: now,
+
+      updatedAt: now,
+
       payload: payload.toMap(),
     );
   }
@@ -241,12 +328,12 @@ class RequestBuilder {
     required String title,
     required String message,
     Map<String, dynamic> data =
-        const {},
+    const {},
     RequestPriority priority =
         RequestPriority.normal,
   }) {
     final payload =
-        CustomRequestPayload(
+    CustomRequestPayload(
       title: title,
 
       message: message,
@@ -258,37 +345,37 @@ class RequestBuilder {
       appointmentEnd: _end,
 
       employeeId:
-          _appointment.employeeId,
+      _appointment.employeeId,
 
       employeeName:
-          _appointment.employeeName,
+      _appointment.employeeName,
 
       serviceId:
-          _appointment.serviceId,
+      _appointment.serviceId,
 
       serviceName:
-          _appointment.serviceName,
+      _appointment.serviceName,
     );
 
     return _build(
       type:
-          AppointmentRequestType
-              .custom,
+      AppointmentRequestType
+          .custom,
       priority: priority,
       payload: payload.toMap(),
     );
   }
 
   //--------------------------------------------------
-  // CORE
+  // CORE - SALONE
   //--------------------------------------------------
 
   AppointmentRequest _build({
     required AppointmentRequestType
-        type,
+    type,
     required RequestPriority priority,
     required Map<String, dynamic>
-        payload,
+    payload,
   }) {
     final now = DateTime.now();
 
@@ -296,25 +383,25 @@ class RequestBuilder {
       id: _uuid.v4(),
 
       appointmentId:
-          _appointment.id,
+      _appointment.id,
 
       salonId:
-          _appointment.salonId,
+      _appointment.salonId,
 
       salonName:
-          _appointment.salonName,
+      _appointment.salonName,
 
       customerId:
-          _appointment.userId,
+      _appointment.userId,
 
       customerName:
-          _appointment.customerName,
+      _appointment.customerName,
 
       customerPhone:
-          _appointment.customerPhone,
+      _appointment.customerPhone,
 
       createdBy:
-          RequestAuthor.admin,
+      RequestAuthor.admin,
 
       createdByName: "Salon",
 
@@ -323,8 +410,8 @@ class RequestBuilder {
       type: type,
 
       status:
-          AppointmentRequestStatus
-              .draft,
+      AppointmentRequestStatus
+          .draft,
 
       createdAt: now,
 

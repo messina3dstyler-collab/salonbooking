@@ -41,6 +41,13 @@ class RequestService {
         request,
       );
 
+  Future<AppointmentRequest> createCustomerCancellationRequest({
+    required AppointmentRequest request,
+  }) =>
+      _repository.createCustomerCancellationRequest(
+        request,
+      );
+
   Future<AppointmentRequest> createCustomRequest({
     required AppointmentRequest request,
   }) =>
@@ -144,6 +151,14 @@ class RequestService {
     required String salonId,
   }) =>
       _repository.watchPendingRequests(
+        salonId,
+      );
+
+  Stream<List<AppointmentRequest>>
+  watchPendingSalonRequests({
+    required String salonId,
+  }) =>
+      _repository.watchPendingSalonRequests(
         salonId,
       );
 }

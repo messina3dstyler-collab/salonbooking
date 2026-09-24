@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../models/appointment_request.dart';
 
-
 extension AppointmentRequestStatusExtension
 on AppointmentRequestStatus {
-
   String get label {
     switch (this) {
       case AppointmentRequestStatus.draft:
@@ -13,6 +11,9 @@ on AppointmentRequestStatus {
 
       case AppointmentRequestStatus.pendingCustomer:
         return "In attesa";
+
+      case AppointmentRequestStatus.pendingSalon:
+        return "In attesa del salone";
 
       case AppointmentRequestStatus.accepted:
         return "Accettata";
@@ -34,6 +35,9 @@ on AppointmentRequestStatus {
         return Colors.grey;
 
       case AppointmentRequestStatus.pendingCustomer:
+        return const Color(0xFFE6A100);
+
+      case AppointmentRequestStatus.pendingSalon:
         return const Color(0xFFE6A100);
 
       case AppointmentRequestStatus.accepted:
@@ -58,6 +62,9 @@ on AppointmentRequestStatus {
       case AppointmentRequestStatus.pendingCustomer:
         return Icons.schedule;
 
+      case AppointmentRequestStatus.pendingSalon:
+        return Icons.schedule;
+
       case AppointmentRequestStatus.accepted:
         return Icons.check_circle;
 
@@ -71,33 +78,41 @@ on AppointmentRequestStatus {
         return Icons.block;
     }
   }
-RequestActionOwner get actionOwner {
-  switch (this) {
-    case AppointmentRequestStatus.draft:
-      return RequestActionOwner.salon;
 
-    case AppointmentRequestStatus.pendingCustomer:
-      return RequestActionOwner.customer;
+  RequestActionOwner get actionOwner {
+    switch (this) {
+      case AppointmentRequestStatus.draft:
+        return RequestActionOwner.salon;
 
-    case AppointmentRequestStatus.accepted:
-      return RequestActionOwner.none;
+      case AppointmentRequestStatus.pendingCustomer:
+        return RequestActionOwner.customer;
 
-    case AppointmentRequestStatus.rejected:
-      return RequestActionOwner.none;
+      case AppointmentRequestStatus.pendingSalon:
+        return RequestActionOwner.salon;
 
-    case AppointmentRequestStatus.expired:
-      return RequestActionOwner.system;
+      case AppointmentRequestStatus.accepted:
+        return RequestActionOwner.none;
 
-    case AppointmentRequestStatus.cancelled:
-      return RequestActionOwner.none;
+      case AppointmentRequestStatus.rejected:
+        return RequestActionOwner.none;
+
+      case AppointmentRequestStatus.expired:
+        return RequestActionOwner.system;
+
+      case AppointmentRequestStatus.cancelled:
+        return RequestActionOwner.none;
+    }
   }
- }
+
   bool get requiresAttention {
     switch (this) {
       case AppointmentRequestStatus.draft:
         return true;
 
       case AppointmentRequestStatus.pendingCustomer:
+        return true;
+
+      case AppointmentRequestStatus.pendingSalon:
         return true;
 
       case AppointmentRequestStatus.accepted:
@@ -113,6 +128,7 @@ RequestActionOwner get actionOwner {
         return false;
     }
   }
+
   bool get isClosed {
     switch (this) {
       case AppointmentRequestStatus.accepted:
@@ -123,6 +139,7 @@ RequestActionOwner get actionOwner {
 
       case AppointmentRequestStatus.draft:
       case AppointmentRequestStatus.pendingCustomer:
+      case AppointmentRequestStatus.pendingSalon:
         return false;
     }
   }

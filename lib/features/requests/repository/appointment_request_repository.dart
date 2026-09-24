@@ -22,6 +22,10 @@ abstract class AppointmentRequestRepository {
       AppointmentRequest request,
       );
 
+  Future<AppointmentRequest> createCustomerCancellationRequest(
+      AppointmentRequest request,
+      );
+
   Future<AppointmentRequest> createCustomRequest(
       AppointmentRequest request,
       );
@@ -79,6 +83,11 @@ abstract class AppointmentRequestRepository {
 
   Stream<List<AppointmentRequest>>
   watchPendingRequests(
+      String salonId,
+      );
+
+  Stream<List<AppointmentRequest>>
+  watchPendingSalonRequests(
       String salonId,
       );
 

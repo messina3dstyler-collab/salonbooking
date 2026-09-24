@@ -223,4 +223,34 @@ class FirestoreRequestDatasource
           .toList(),
     );
   }
+
+  @override
+  Stream<List<AppointmentRequest>>
+  watchPendingSalonRequests(
+      String salonId,
+      ) {
+    return _requests
+        .where(
+      "salonId",
+      isEqualTo: salonId,
+    )
+        .where(
+      "status",
+      isEqualTo:
+      AppointmentRequestStatus
+          .pendingSalon
+          .name,
+    )
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+          .map(
+            (doc) =>
+            _requestMapper.fromDocument(
+              doc,
+            ),
+      )
+          .toList(),
+    );
+  }
 }

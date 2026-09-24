@@ -10,7 +10,8 @@ import '../../appointment/models/appointment_model.dart';
 import '../../appointment/repositories/appointment_repository.dart';
 import 'request_workflow_service.dart';
 
-class RequestWorkflowServiceImpl implements RequestWorkflowService {
+class RequestWorkflowServiceImpl
+    implements RequestWorkflowService {
   RequestWorkflowServiceImpl({
     required AppointmentRequestDatasource datasource,
     required RequestTransactionService transaction,
@@ -20,13 +21,17 @@ class RequestWorkflowServiceImpl implements RequestWorkflowService {
     RequestStateValidator? stateValidator,
   })  : _datasource = datasource,
         _transaction = transaction,
-        _appointmentRepository = appointmentRepository,
+        _appointmentRepository =
+            appointmentRepository,
         _creationValidator =
-            creationValidator ?? const RequestCreationValidator(),
+            creationValidator ??
+                const RequestCreationValidator(),
         _responseValidator =
-            responseValidator ?? const RequestResponseValidator(),
+            responseValidator ??
+                const RequestResponseValidator(),
         _stateValidator =
-            stateValidator ?? const RequestStateValidator();
+            stateValidator ??
+                const RequestStateValidator();
 
   final AppointmentRequestDatasource _datasource;
   final RequestTransactionService _transaction;
@@ -64,6 +69,13 @@ class RequestWorkflowServiceImpl implements RequestWorkflowService {
       _create(request);
 
   @override
+  Future<AppointmentRequest>
+  createCustomerCancellationRequest({
+    required AppointmentRequest request,
+  }) =>
+      _createCustomerCancellation(request);
+
+  @override
   Future<AppointmentRequest> createCustomRequest({
     required AppointmentRequest request,
   }) =>
@@ -72,7 +84,8 @@ class RequestWorkflowServiceImpl implements RequestWorkflowService {
   Future<AppointmentRequest> _create(
       AppointmentRequest request,
       ) async {
-    final creationError = _creationValidator.validate(
+    final creationError =
+    _creationValidator.validate(
       request,
     );
 
@@ -82,13 +95,101 @@ class RequestWorkflowServiceImpl implements RequestWorkflowService {
       );
     }
 
-    final stateError = _stateValidator.validateCreation(
+    final stateError =
+    _stateValidator.validateCreation(
       request,
     );
 
     if (stateError != null) {
       throw RequestValidationException(
         stateError,
+      );
+    }
+
+    await _transaction.createRequest(
+      request: request,
+    );
+
+    return request;
+  }
+
+  //--------------------------------------------------
+  // CREAZIONE CANCELLAZIONE CLIENTE
+  //--------------------------------------------------
+
+  Future<AppointmentRequest>
+  _createCustomerCancellation(
+      AppointmentRequest request,
+      ) async {
+    final creationError =
+    _creationValidator
+        .validateCustomerCancellation(
+      request,
+    );
+
+    if (creationError != null) {
+      throw RequestValidationException(
+        creationError,
+      );
+    }
+
+    final stateError =
+    _stateValidator
+        .validateCustomerCancellationCreation(
+      request,
+    );
+
+    if (stateError != null) {
+      throw RequestValidationException(
+        stateError,
+      );
+    }
+
+    final appointment =
+    await _appointmentRepository.getAppointment(
+      appointmentId: request.appointmentId,
+    );
+
+    if (appointment == null) {
+      throw const RequestValidationException(
+        "L'appuntamento non esiste più.",
+      );
+    }
+
+    if (appointment.id != request.appointmentId) {
+      throw const RequestValidationException(
+        "L'appuntamento della richiesta non è valido.",
+      );
+    }
+
+    if (appointment.userId != request.customerId) {
+      throw const RequestValidationException(
+        "La richiesta non appartiene al cliente dell'appuntamento.",
+      );
+    }
+
+    if (appointment.salonId != request.salonId) {
+      throw const RequestValidationException(
+        "Il salone della richiesta non corrisponde all'appuntamento.",
+      );
+    }
+
+    if (appointment.status == "Annullata") {
+      throw const RequestValidationException(
+        "L'appuntamento è già stato annullato.",
+      );
+    }
+
+    final now = DateTime.now();
+
+    final timeUntilAppointment =
+    appointment.appointmentDate
+        .difference(now);
+
+    if (timeUntilAppointment <
+        const Duration(hours: 48)) {
+      throw const RequestValidationException(
+        "La cancellazione può essere richiesta solo almeno 48 ore prima dell'appuntamento.",
       );
     }
 
@@ -111,7 +212,8 @@ class RequestWorkflowServiceImpl implements RequestWorkflowService {
       requestId,
     );
 
-    final stateError = _stateValidator.validateTransition(
+    final stateError =
+    _stateValidator.validateTransition(
       from: request.status,
       to: AppointmentRequestStatus.pendingCustomer,
     );
@@ -139,7 +241,8 @@ class RequestWorkflowServiceImpl implements RequestWorkflowService {
       requestId,
     );
 
-    final stateError = _stateValidator.validateAccept(
+    final stateError =
+    _stateValidator.validateAccept(
       request,
     );
 
@@ -149,7 +252,8 @@ class RequestWorkflowServiceImpl implements RequestWorkflowService {
       );
     }
 
-    final responseError = _responseValidator.validateAccept(
+    final responseError =
+    _responseValidator.validateAccept(
       request,
     );
 
@@ -176,7 +280,8 @@ class RequestWorkflowServiceImpl implements RequestWorkflowService {
       requestId,
     );
 
-    final stateError = _stateValidator.validateReject(
+    final stateError =
+    _stateValidator.validateReject(
       request,
     );
 
@@ -186,7 +291,8 @@ class RequestWorkflowServiceImpl implements RequestWorkflowService {
       );
     }
 
-    final responseError = _responseValidator.validateReject(
+    final responseError =
+    _responseValidator.validateReject(
       request,
     );
 
@@ -213,7 +319,8 @@ class RequestWorkflowServiceImpl implements RequestWorkflowService {
       requestId,
     );
 
-    final stateError = _stateValidator.validateTransition(
+    final stateError =
+    _stateValidator.validateTransition(
       from: request.status,
       to: AppointmentRequestStatus.cancelled,
     );
@@ -224,7 +331,8 @@ class RequestWorkflowServiceImpl implements RequestWorkflowService {
       );
     }
 
-    final responseError = _responseValidator.validateCancel(
+    final responseError =
+    _responseValidator.validateCancel(
       request,
     );
 
@@ -251,7 +359,8 @@ class RequestWorkflowServiceImpl implements RequestWorkflowService {
       requestId,
     );
 
-    final stateError = _stateValidator.validateTransition(
+    final stateError =
+    _stateValidator.validateTransition(
       from: request.status,
       to: AppointmentRequestStatus.expired,
     );
@@ -269,7 +378,8 @@ class RequestWorkflowServiceImpl implements RequestWorkflowService {
       );
     }
 
-    final expiresAt = request.payload["expiresAt"];
+    final expiresAt =
+    request.payload["expiresAt"];
 
     if (expiresAt == null) {
       throw const RequestValidationException(
@@ -316,7 +426,8 @@ class RequestWorkflowServiceImpl implements RequestWorkflowService {
       requestId,
     );
 
-    final responseError = _responseValidator.validateReminder(
+    final responseError =
+    _responseValidator.validateReminder(
       request,
     );
 
@@ -354,7 +465,8 @@ class RequestWorkflowServiceImpl implements RequestWorkflowService {
   }
 
   @override
-  Stream<List<AppointmentRequest>> watchAppointmentRequests(
+  Stream<List<AppointmentRequest>>
+  watchAppointmentRequests(
       String appointmentId,
       ) {
     return _datasource.watchAppointmentRequests(
@@ -363,7 +475,8 @@ class RequestWorkflowServiceImpl implements RequestWorkflowService {
   }
 
   @override
-  Stream<List<AppointmentRequest>> watchCustomerRequests(
+  Stream<List<AppointmentRequest>>
+  watchCustomerRequests(
       String customerId,
       ) {
     return _datasource.watchCustomerRequests(
@@ -372,10 +485,21 @@ class RequestWorkflowServiceImpl implements RequestWorkflowService {
   }
 
   @override
-  Stream<List<AppointmentRequest>> watchPendingRequests(
+  Stream<List<AppointmentRequest>>
+  watchPendingRequests(
       String salonId,
       ) {
     return _datasource.watchPendingRequests(
+      salonId,
+    );
+  }
+
+  @override
+  Stream<List<AppointmentRequest>>
+  watchPendingSalonRequests(
+      String salonId,
+      ) {
+    return _datasource.watchPendingSalonRequests(
       salonId,
     );
   }
@@ -402,7 +526,8 @@ class RequestWorkflowServiceImpl implements RequestWorkflowService {
         return false;
       }
 
-      return appointment.isPending || appointment.isConfirmed;
+      return appointment.isPending ||
+          appointment.isConfirmed;
     } catch (_) {
       return false;
     }
@@ -417,7 +542,8 @@ class RequestWorkflowServiceImpl implements RequestWorkflowService {
         requestId,
       );
 
-      final stateError = _stateValidator.validateAccept(
+      final stateError =
+      _stateValidator.validateAccept(
         request,
       );
 
@@ -425,7 +551,8 @@ class RequestWorkflowServiceImpl implements RequestWorkflowService {
         return false;
       }
 
-      final responseError = _responseValidator.validateAccept(
+      final responseError =
+      _responseValidator.validateAccept(
         request,
       );
 
@@ -444,7 +571,8 @@ class RequestWorkflowServiceImpl implements RequestWorkflowService {
         requestId,
       );
 
-      final stateError = _stateValidator.validateReject(
+      final stateError =
+      _stateValidator.validateReject(
         request,
       );
 
@@ -452,7 +580,8 @@ class RequestWorkflowServiceImpl implements RequestWorkflowService {
         return false;
       }
 
-      final responseError = _responseValidator.validateReject(
+      final responseError =
+      _responseValidator.validateReject(
         request,
       );
 
@@ -474,7 +603,9 @@ class RequestWorkflowServiceImpl implements RequestWorkflowService {
       requestId,
     );
 
-    if (!_stateValidator.canArchive(request)) {
+    if (!_stateValidator.canArchive(
+      request,
+    )) {
       throw const RequestValidationException(
         "La richiesta non è ancora archiviabile.",
       );

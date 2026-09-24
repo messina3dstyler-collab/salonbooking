@@ -17,6 +17,12 @@ class RequestController extends ChangeNotifier {
   StreamSubscription<List<AppointmentRequest>>?
   _requestsSubscription;
 
+  StreamSubscription<List<AppointmentRequest>>?
+  _pendingCustomerSubscription;
+
+  StreamSubscription<List<AppointmentRequest>>?
+  _pendingSalonSubscription;
+
   bool _isLoading = false;
   String? _error;
 
@@ -65,6 +71,15 @@ class RequestController extends ChangeNotifier {
       ) =>
       _execute(() async {
         await _service.createCancelRequest(
+          request: request,
+        );
+      });
+
+  Future<void> createCustomerCancellationRequest(
+      AppointmentRequest request,
+      ) =>
+      _execute(() async {
+        await _service.createCustomerCancellationRequest(
           request: request,
         );
       });
@@ -174,10 +189,63 @@ class RequestController extends ChangeNotifier {
     );
   }
 
+  void bindPendingSalon(
+      String salonId,
+      ) {
+    _bind(
+      _service.watchPendingSalonRequests(
+        salonId: salonId,
+      ),
+    );
+  }
+
+  /// Ascolta contemporaneamente le richieste pendenti
+  /// lato cliente e quelle pendenti lato salone.
+  ///
+  /// Questo permette al salone di ricevere in realtime:
+  /// - proposte del salone in attesa del cliente;
+  /// - richieste di cancellazione del cliente in attesa
+  ///   del salone.
+  void bindSalonRequests(
+      String salonId,
+      ) {
+    _cancelRequestSubscriptions();
+
+    final Map<String, AppointmentRequest> combined = {};
+
+    void updateRequests(
+        List<AppointmentRequest> value,
+        ) {
+      for (final request in value) {
+        combined[request.id] = request;
+      }
+
+      final merged = combined.values.toList()
+        ..sort(
+              (a, b) => b.updatedAt.compareTo(a.updatedAt),
+        );
+
+      _requests = merged;
+      notifyListeners();
+    }
+
+    _pendingCustomerSubscription = _service
+        .watchPendingRequests(
+      salonId: salonId,
+    )
+        .listen(updateRequests);
+
+    _pendingSalonSubscription = _service
+        .watchPendingSalonRequests(
+      salonId: salonId,
+    )
+        .listen(updateRequests);
+  }
+
   void _bind(
       Stream<List<AppointmentRequest>> stream,
       ) {
-    _requestsSubscription?.cancel();
+    _cancelRequestSubscriptions();
 
     _requestsSubscription = stream.listen(
           (value) {
@@ -185,6 +253,17 @@ class RequestController extends ChangeNotifier {
         notifyListeners();
       },
     );
+  }
+
+  void _cancelRequestSubscriptions() {
+    _requestsSubscription?.cancel();
+    _requestsSubscription = null;
+
+    _pendingCustomerSubscription?.cancel();
+    _pendingCustomerSubscription = null;
+
+    _pendingSalonSubscription?.cancel();
+    _pendingSalonSubscription = null;
   }
 
   //--------------------------------------------------
@@ -230,7 +309,7 @@ class RequestController extends ChangeNotifier {
 
   @override
   void dispose() {
-    _requestsSubscription?.cancel();
+    _cancelRequestSubscriptions();
     super.dispose();
   }
 }

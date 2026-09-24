@@ -11,19 +11,32 @@ class RequestResponseValidator {
       AppointmentRequest request,
       ) {
     //------------------------------------------
-    // Deve essere in attesa del cliente
+    // Deve essere in attesa di una risposta
     //------------------------------------------
 
-    if (request.status !=
-        AppointmentRequestStatus.pendingCustomer) {
-      return "La richiesta non è più in attesa della risposta del cliente.";
+    final isPendingCustomer =
+        request.status ==
+            AppointmentRequestStatus.pendingCustomer;
+
+    final isPendingSalonCancellation =
+        request.status ==
+            AppointmentRequestStatus.pendingSalon &&
+            request.type ==
+                AppointmentRequestType.cancelAppointment;
+
+    if (!isPendingCustomer &&
+        !isPendingSalonCancellation) {
+      return "La richiesta non è in uno stato che può essere accettato.";
     }
 
     //------------------------------------------
     // Richiesta già scaduta
     //------------------------------------------
 
-    if (_isExpired(request)) {
+    // Le richieste pendingSalon di cancellazione
+    // non utilizzano il meccanismo expiresAt del
+    // workflow salon -> customer.
+    if (isPendingCustomer && _isExpired(request)) {
       return "La richiesta è scaduta.";
     }
 
@@ -38,19 +51,32 @@ class RequestResponseValidator {
       AppointmentRequest request,
       ) {
     //------------------------------------------
-    // Deve essere in attesa del cliente
+    // Deve essere in attesa di una risposta
     //------------------------------------------
 
-    if (request.status !=
-        AppointmentRequestStatus.pendingCustomer) {
-      return "La richiesta non è più in attesa della risposta del cliente.";
+    final isPendingCustomer =
+        request.status ==
+            AppointmentRequestStatus.pendingCustomer;
+
+    final isPendingSalonCancellation =
+        request.status ==
+            AppointmentRequestStatus.pendingSalon &&
+            request.type ==
+                AppointmentRequestType.cancelAppointment;
+
+    if (!isPendingCustomer &&
+        !isPendingSalonCancellation) {
+      return "La richiesta non è in uno stato che può essere rifiutato.";
     }
 
     //------------------------------------------
     // Richiesta già scaduta
     //------------------------------------------
 
-    if (_isExpired(request)) {
+    // Le richieste pendingSalon di cancellazione
+    // non utilizzano il meccanismo expiresAt del
+    // workflow salon -> customer.
+    if (isPendingCustomer && _isExpired(request)) {
       return "La richiesta è scaduta.";
     }
 
@@ -68,6 +94,9 @@ class RequestResponseValidator {
       case AppointmentRequestStatus.draft:
       case AppointmentRequestStatus.pendingCustomer:
         return null;
+
+      case AppointmentRequestStatus.pendingSalon:
+        return "Una richiesta di cancellazione del cliente non può essere annullata dal salone.";
 
       case AppointmentRequestStatus.accepted:
         return "La richiesta è già stata accettata.";

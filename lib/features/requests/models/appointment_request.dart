@@ -16,6 +16,7 @@ enum AppointmentRequestType {
 enum AppointmentRequestStatus {
   draft,
   pendingCustomer,
+  pendingSalon,
   accepted,
   rejected,
   expired,
@@ -81,9 +82,10 @@ class AppointmentRequest {
 
   /// Chi ha creato la proposta.
   ///
-  /// Nel modello applicativo il customer non crea Request.
-  /// La proposta può essere creata dal salone/admin,
-  /// da un dipendente operativo del salone oppure dal sistema.
+  /// Una Request può essere creata dal salone/admin,
+  /// da un dipendente operativo del salone,
+  /// dal customer per una cancellazione
+  /// oppure dal sistema.
   final RequestAuthor createdBy;
   final String createdByName;
 
@@ -250,6 +252,9 @@ class AppointmentRequest {
   bool get isPending =>
       status == AppointmentRequestStatus.pendingCustomer;
 
+  bool get isPendingSalon =>
+      status == AppointmentRequestStatus.pendingSalon;
+
   bool get isAccepted =>
       status == AppointmentRequestStatus.accepted;
 
@@ -284,6 +289,9 @@ class AppointmentRequest {
 
   bool get createdByEmployee =>
       createdBy == RequestAuthor.employee;
+
+  bool get createdByCustomer =>
+      createdBy == RequestAuthor.customer;
 
   bool get createdBySystem =>
       createdBy == RequestAuthor.system;

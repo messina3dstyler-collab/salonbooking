@@ -4,7 +4,6 @@ import 'appointment_request.dart';
 
 extension AppointmentRequestTypeExtension
 on AppointmentRequestType {
-
   String get title {
     switch (this) {
       case AppointmentRequestType.reschedule:
@@ -65,7 +64,6 @@ on AppointmentRequestType {
 
 extension AppointmentRequestStatusExtension
 on AppointmentRequestStatus {
-
   String get label {
     switch (this) {
       case AppointmentRequestStatus.draft:
@@ -73,6 +71,9 @@ on AppointmentRequestStatus {
 
       case AppointmentRequestStatus.pendingCustomer:
         return 'In attesa';
+
+      case AppointmentRequestStatus.pendingSalon:
+        return 'In attesa del salone';
 
       case AppointmentRequestStatus.accepted:
         return 'Accettata';
@@ -96,6 +97,9 @@ on AppointmentRequestStatus {
       case AppointmentRequestStatus.pendingCustomer:
         return Colors.orange;
 
+      case AppointmentRequestStatus.pendingSalon:
+        return Colors.orange;
+
       case AppointmentRequestStatus.accepted:
         return Colors.green;
 
@@ -116,6 +120,9 @@ on AppointmentRequestStatus {
         return Icons.edit_note;
 
       case AppointmentRequestStatus.pendingCustomer:
+        return Icons.schedule;
+
+      case AppointmentRequestStatus.pendingSalon:
         return Icons.schedule;
 
       case AppointmentRequestStatus.accepted:
@@ -142,6 +149,7 @@ on AppointmentRequestStatus {
 
       case AppointmentRequestStatus.draft:
       case AppointmentRequestStatus.pendingCustomer:
+      case AppointmentRequestStatus.pendingSalon:
         return false;
     }
   }

@@ -46,7 +46,7 @@ class RequestActionBuilder {
         );
 
     //----------------------------------------------------------
-    // IN ATTESA
+    // IN ATTESA DEL CLIENTE
     //----------------------------------------------------------
 
       case AppointmentRequestStatus.pendingCustomer:
@@ -72,6 +72,49 @@ class RequestActionBuilder {
               action: RequestActionType.cancel,
             ),
           ],
+        );
+
+    //----------------------------------------------------------
+    // IN ATTESA DEL SALONE
+    //----------------------------------------------------------
+
+      case AppointmentRequestStatus.pendingSalon:
+        if (request.type ==
+            AppointmentRequestType.cancelAppointment) {
+          return const RequestActions(
+            primary: RequestAction(
+              icon: Icons.cancel_outlined,
+              label: "Richiesta di cancellazione",
+              subtitle:
+              "Il cliente ha richiesto la cancellazione dell'appuntamento.",
+              color: Colors.orange,
+              enabled: false,
+            ),
+            secondary: [
+              RequestActionButton(
+                icon: Icons.check_circle_outline,
+                label: "Accetta",
+                color: Colors.green,
+                action: RequestActionType.accept,
+              ),
+              RequestActionButton(
+                icon: Icons.close,
+                label: "Rifiuta",
+                color: Colors.red,
+                action: RequestActionType.reject,
+              ),
+            ],
+          );
+        }
+
+        return const RequestActions(
+          primary: RequestAction(
+            icon: Icons.hourglass_top,
+            label: "In attesa del salone",
+            subtitle:
+            "La richiesta è in attesa di una risposta del salone.",
+            enabled: false,
+          ),
         );
 
     //----------------------------------------------------------

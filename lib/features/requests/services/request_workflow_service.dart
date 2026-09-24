@@ -22,6 +22,11 @@ abstract class RequestWorkflowService {
     required AppointmentRequest request,
   });
 
+  Future<AppointmentRequest>
+  createCustomerCancellationRequest({
+    required AppointmentRequest request,
+  });
+
   Future<AppointmentRequest> createCustomRequest({
     required AppointmentRequest request,
   });
@@ -43,7 +48,7 @@ abstract class RequestWorkflowService {
       );
 
   //--------------------------------------------------
-  // RISPOSTA CLIENTE
+  // RISPOSTA
   //--------------------------------------------------
 
   Future<void> acceptRequest(
@@ -79,6 +84,11 @@ abstract class RequestWorkflowService {
       );
 
   Stream<List<AppointmentRequest>> watchPendingRequests(
+      String salonId,
+      );
+
+  Stream<List<AppointmentRequest>>
+  watchPendingSalonRequests(
       String salonId,
       );
 

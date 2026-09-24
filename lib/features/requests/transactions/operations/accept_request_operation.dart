@@ -15,8 +15,18 @@ class AcceptRequestOperation extends RequestTransactionOperation {
     // REQUEST STATE
     //--------------------------------------------------
 
-    if (request.status !=
-        AppointmentRequestStatus.pendingCustomer) {
+    final isPendingCustomer =
+        request.status ==
+            AppointmentRequestStatus.pendingCustomer;
+
+    final isPendingSalonCancellation =
+        request.status ==
+            AppointmentRequestStatus.pendingSalon &&
+            request.type ==
+                AppointmentRequestType.cancelAppointment;
+
+    if (!isPendingCustomer &&
+        !isPendingSalonCancellation) {
       throw StateError(
         "La Request '${request.id}' non è più pendente.",
       );
@@ -184,9 +194,13 @@ class AcceptRequestOperation extends RequestTransactionOperation {
       requestId: updated.id,
       type: RequestTimelineEventType.accepted,
       createdAt: now,
-      author: RequestTimelineAuthor.customer,
+      author: isPendingSalonCancellation
+          ? RequestTimelineAuthor.admin
+          : RequestTimelineAuthor.customer,
       message:
-      "La richiesta è stata accettata.",
+      isPendingSalonCancellation
+          ? "La richiesta di cancellazione è stata accettata dal salone."
+          : "La richiesta è stata accettata.",
     );
 
     createTimelineEvent(

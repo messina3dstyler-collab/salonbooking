@@ -87,6 +87,81 @@ service cloud.firestore {
       return /databases/$(database)/documents/appointment_slots/$(slotId);
     }
 
+    function acceptedRequestRef(requestId) {
+      return /databases/$(database)/documents/appointment_requests/$(requestId);
+    }
+
+    function acceptedRequestMatchesAppointment(
+        requestId,
+        appointmentId,
+        userId,
+        salonId
+    ) {
+      let requestData = getAfter(acceptedRequestRef(requestId)).data;
+      return
+        requestData.status == "accepted"
+        && requestData.customerId == userId
+        && requestData.appointmentId == appointmentId
+        && requestData.salonId == salonId;
+    }
+
+    function validCustomerCancellationRequest(data, requestId) {
+      return
+        isUser()
+        && data.id == requestId
+        && data.createdBy == "customer"
+        && data.type == "cancelAppointment"
+        && data.status == "pendingSalon"
+        && data.customerId == request.auth.uid
+        && data.customerId is string
+        && data.customerId != ""
+        && data.salonId is string
+        && data.salonId != ""
+        && data.appointmentId is string
+        && data.appointmentId != ""
+        && data.priority is string
+        && data.payload is map
+        && exists(appointmentRef(data.appointmentId))
+        && get(appointmentRef(data.appointmentId)).data.userId == request.auth.uid
+        && get(appointmentRef(data.appointmentId)).data.salonId == data.salonId
+        && get(appointmentRef(data.appointmentId)).data.status != "Annullata"
+        && get(appointmentRef(data.appointmentId)).data.date is timestamp
+        && get(appointmentRef(data.appointmentId)).data.date
+           >= request.time + duration.value(48, 'h');
+    }
+
+    function acceptedChangeServicesMatchesAppointment(
+        requestId,
+        salonId,
+        serviceId,
+        appointmentDuration,
+        serviceDuration,
+        price
+    ) {
+      let requestData = getAfter(acceptedRequestRef(requestId)).data;
+      let serviceData = get(serviceRef(salonId, serviceId)).data;
+      return
+        requestData.type == "changeServices"
+        && requestData.payload.newServiceIds is list
+        && requestData.payload.newServiceIds.size() == 1
+        && serviceId == requestData.payload.newServiceIds[0]
+        && serviceData.duration is int
+        && serviceData.duration > 0
+        && serviceData.duration <= 180
+        && appointmentDuration is int
+        && appointmentDuration > 0
+        && appointmentDuration <= 180
+        && serviceDuration == appointmentDuration
+        && appointmentDuration == serviceData.duration
+        && price is number
+        && price >= 0
+        && price == serviceData.price
+        && requestData.payload.newDuration is int
+        && requestData.payload.newDuration == appointmentDuration
+        && requestData.payload.newTotalPrice is number
+        && requestData.payload.newTotalPrice == price;
+    }
+
     function validAppointmentData(data) {
       return
         data.userId is string
@@ -98,6 +173,8 @@ service cloud.firestore {
         && data.serviceId is string
         && data.serviceId != ""
         && data.date is timestamp
+        && data.price is number
+        && data.price >= 0
         && data.duration is int
         && data.duration > 0
         && data.duration <= 180
@@ -118,7 +195,9 @@ service cloud.firestore {
         && get(serviceRef(data.salonId, data.serviceId)).data.duration > 0
         && get(serviceRef(data.salonId, data.serviceId)).data.duration <= 180
         && data.duration == get(serviceRef(data.salonId, data.serviceId)).data.duration
-        && data.serviceDuration == data.duration;
+        && data.serviceDuration == data.duration
+        && data.price
+           == get(serviceRef(data.salonId, data.serviceId)).data.price;
     }
 
     function validSlotData(data) {
@@ -352,7 +431,6 @@ service cloud.firestore {
 
       allow read: if
         signedIn()
-        && resource != null
         && (
           (
             isUser()
@@ -415,6 +493,8 @@ service cloud.firestore {
              == resource.data.duration
           && request.resource.data.serviceDuration
              == resource.data.serviceDuration
+          && request.resource.data.price
+             == resource.data.price
         )
 
         ||
@@ -460,21 +540,12 @@ service cloud.firestore {
           // Request must be accepted in the same transaction.
           // ---------------------------------------------------
 
-          && getAfter(
-            /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
-          ).data.status == "accepted"
-
-          && getAfter(
-            /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
-          ).data.customerId == request.auth.uid
-
-          && getAfter(
-            /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
-          ).data.appointmentId == appointmentId
-
-          && getAfter(
-            /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
-          ).data.salonId == resource.data.salonId
+          && acceptedRequestMatchesAppointment(
+            request.resource.data.acceptedRequestId,
+            appointmentId,
+            request.auth.uid,
+            resource.data.salonId
+          )
 
           // ---------------------------------------------------
           // Request type -> Appointment fields
@@ -582,90 +653,14 @@ service cloud.firestore {
             // -------------------------------------------------
 
             (
-              getAfter(
-                /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
-              ).data.type == "changeServices"
-
-              && (
-                (
-                  getAfter(
-                    /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
-                  ).data.payload.newServiceIds is list
-
-                  && getAfter(
-                    /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
-                  ).data.payload.newServiceIds.size() == 1
-
-                  && request.resource.data.serviceId
-                     ==
-                     getAfter(
-                       /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
-                     ).data.payload.newServiceIds[0]
-                )
+              acceptedChangeServicesMatchesAppointment(
+                request.resource.data.acceptedRequestId,
+                resource.data.salonId,
+                request.resource.data.serviceId,
+                request.resource.data.duration,
+                request.resource.data.serviceDuration,
+                request.resource.data.price
               )
-
-              && exists(
-                serviceRef(
-                  resource.data.salonId,
-                  request.resource.data.serviceId
-                )
-              )
-
-              && get(
-                serviceRef(
-                  resource.data.salonId,
-                  request.resource.data.serviceId
-                )
-              ).data.duration is int
-
-              && get(
-                serviceRef(
-                  resource.data.salonId,
-                  request.resource.data.serviceId
-                )
-              ).data.duration > 0
-
-              && get(
-                serviceRef(
-                  resource.data.salonId,
-                  request.resource.data.serviceId
-                )
-              ).data.duration <= 180
-
-              && request.resource.data.duration is int
-              && request.resource.data.duration > 0
-              && request.resource.data.duration <= 180
-
-              && request.resource.data.serviceDuration
-                 == request.resource.data.duration
-
-              && request.resource.data.duration
-                 ==
-                 get(
-                   serviceRef(
-                     resource.data.salonId,
-                     request.resource.data.serviceId
-                   )
-                 ).data.duration
-
-              && request.resource.data.price is number
-              && request.resource.data.price >= 0
-
-              && getAfter(
-                /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
-              ).data.payload.newDuration is int
-
-              && getAfter(
-                /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
-              ).data.payload.newDuration == request.resource.data.duration
-
-              && getAfter(
-                /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
-              ).data.payload.newTotalPrice is number
-
-              && getAfter(
-                /databases/$(database)/documents/appointment_requests/$(request.resource.data.acceptedRequestId)
-              ).data.payload.newTotalPrice == request.resource.data.price
 
               && request.resource.data.diff(resource.data)
                 .affectedKeys()
@@ -1076,19 +1071,26 @@ service cloud.firestore {
       // -------------------------------------------------------
 
       allow create: if
-      isSalon()
-      && request.resource.data.id == requestId
-      && request.resource.data.salonId
-      == currentUser().data.salonId
-      && request.resource.data.customerId is string
-      && request.resource.data.customerId != ""
-      && request.resource.data.appointmentId is string
-      && request.resource.data.appointmentId != ""
-      && request.resource.data.createdBy == "admin"
-      && request.resource.data.status == "draft"
-      && request.resource.data.type is string
-      && request.resource.data.priority is string
-      && request.resource.data.payload is map;
+      (
+        isSalon()
+        && request.resource.data.id == requestId
+        && request.resource.data.salonId
+        == currentUser().data.salonId
+        && request.resource.data.customerId is string
+        && request.resource.data.customerId != ""
+        && request.resource.data.appointmentId is string
+        && request.resource.data.appointmentId != ""
+        && request.resource.data.createdBy == "admin"
+        && request.resource.data.status == "draft"
+        && request.resource.data.type is string
+        && request.resource.data.priority is string
+        && request.resource.data.payload is map
+      )
+      ||
+      validCustomerCancellationRequest(
+        request.resource.data,
+        requestId
+      );
 
 
       // -------------------------------------------------------
@@ -1147,6 +1149,30 @@ service cloud.firestore {
             && (
               request.resource.data.status == "cancelled"
               || request.resource.data.status == "expired"
+            )
+          )
+          ||
+          (
+            resource.data.status == "pendingSalon"
+            && resource.data.createdBy == "customer"
+            && resource.data.type == "cancelAppointment"
+            && request.resource.data.status is string
+            && (
+              request.resource.data.status == "accepted"
+              || request.resource.data.status == "rejected"
+            )
+            && (
+              request.resource.data.status == "rejected"
+              ||
+              (
+                request.resource.data.status == "accepted"
+                && getAfter(
+                  /databases/$(database)/documents/appointments/$(resource.data.appointmentId)
+                ).data.status == "Annullata"
+                && getAfter(
+                  /databases/$(database)/documents/appointments/$(resource.data.appointmentId)
+                ).data.acceptedRequestId == requestId
+              )
             )
           )
         )
@@ -1229,17 +1255,12 @@ service cloud.firestore {
             // atomic operation.
             // -------------------------------------------------
 
-            && getAfter(
-              /databases/$(database)/documents/appointments/$(resource.data.appointmentId)
-            ).data.userId == request.auth.uid
-
-            && getAfter(
-              /databases/$(database)/documents/appointments/$(resource.data.appointmentId)
-            ).data.acceptedRequestId == requestId
-
-            && getAfter(
-              /databases/$(database)/documents/appointments/$(resource.data.appointmentId)
-            ).data.salonId == resource.data.salonId
+            && acceptedRequestMatchesAppointment(
+              requestId,
+              resource.data.appointmentId,
+              request.auth.uid,
+              resource.data.salonId
+            )
 
             // -------------------------------------------------
             // Appointment update must match Request type.
@@ -1309,28 +1330,12 @@ service cloud.firestore {
 
               (
                 resource.data.type == "changeServices"
-
-                && (
-                  (
-                    resource.data.payload.newServiceId is string
-                    && resource.data.payload.newServiceId != ""
-                    && getAfter(
-                      /databases/$(database)/documents/appointments/$(resource.data.appointmentId)
-                    ).data.serviceId
-                    == resource.data.payload.newServiceId
-                  )
-
-                  ||
-
-                  (
-                    resource.data.payload.serviceId is string
-                    && resource.data.payload.serviceId != ""
-                    && getAfter(
-                      /databases/$(database)/documents/appointments/$(resource.data.appointmentId)
-                    ).data.serviceId
-                    == resource.data.payload.serviceId
-                  )
-                )
+                && resource.data.payload.newServiceIds is list
+                && resource.data.payload.newServiceIds.size() == 1
+                && getAfter(
+                  /databases/$(database)/documents/appointments/$(resource.data.appointmentId)
+                ).data.serviceId
+                == resource.data.payload.newServiceIds[0]
               )
 
               ||
@@ -1523,54 +1528,27 @@ service cloud.firestore {
     // =========================================================
 
     match /employee_calendar/{eventId} {
-
-      // -------------------------------------------------------
-      // READ
-      // -------------------------------------------------------
-
       allow read: if
-      signedIn()
-      && (
-        (
-          isSalon()
-          && resource.data.salonId
-          == currentUser().data.salonId
-        )
-        ||
-        isUser()
-      );
-
-
-      // -------------------------------------------------------
-      // CREATE
-      // -------------------------------------------------------
+        isSalon()
+        && resource.data.salonId
+        == currentUser().data.salonId;
 
       allow create: if
-      isSalon()
-      && request.resource.data.salonId
-      == currentUser().data.salonId;
-
-
-      // -------------------------------------------------------
-      // UPDATE
-      // -------------------------------------------------------
+        isSalon()
+        && request.resource.data.salonId
+        == currentUser().data.salonId;
 
       allow update: if
-      isSalon()
-      && resource.data.salonId
-      == currentUser().data.salonId
-      && request.resource.data.salonId
-      == currentUser().data.salonId;
-
-
-      // -------------------------------------------------------
-      // DELETE
-      // -------------------------------------------------------
+        isSalon()
+        && resource.data.salonId
+        == currentUser().data.salonId
+        && request.resource.data.salonId
+        == currentUser().data.salonId;
 
       allow delete: if
-      isSalon()
-      && resource.data.salonId
-      == currentUser().data.salonId;
+        isSalon()
+        && resource.data.salonId
+        == currentUser().data.salonId;
     }
 
 

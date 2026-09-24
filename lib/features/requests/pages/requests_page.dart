@@ -97,6 +97,20 @@ class _RequestsPageState
                   timeline: timeline,
                   customerName: request.customerName,
                   appointmentTitle: "Appuntamento",
+                  onAccept: request.isPendingSalon
+                      ? () {
+                    controller.accept(
+                      request.id,
+                    );
+                  }
+                      : null,
+                  onReject: request.isPendingSalon
+                      ? () {
+                    controller.reject(
+                      request.id,
+                    );
+                  }
+                      : null,
                 );
               },
             ),

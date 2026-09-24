@@ -55,6 +55,60 @@ class RequestCreationValidator {
   }
 
   //--------------------------------------------------
+  // VALIDAZIONE CANCELLAZIONE CLIENTE
+  //--------------------------------------------------
+
+  String? validateCustomerCancellation(
+      AppointmentRequest request,
+      ) {
+    //------------------------------------------
+    // Stato
+    //------------------------------------------
+
+    if (request.status !=
+        AppointmentRequestStatus.pendingSalon) {
+      return "La richiesta di cancellazione deve essere in attesa del salone.";
+    }
+
+    //------------------------------------------
+    // Autore
+    //------------------------------------------
+
+    if (request.createdBy != RequestAuthor.customer) {
+      return "La richiesta di cancellazione deve essere creata dal cliente.";
+    }
+
+    //------------------------------------------
+    // Tipo
+    //------------------------------------------
+
+    if (request.type !=
+        AppointmentRequestType.cancelAppointment) {
+      return "Il cliente può creare solamente richieste di cancellazione.";
+    }
+
+    //------------------------------------------
+    // Richiesta archiviata
+    //------------------------------------------
+
+    if (request.isArchived) {
+      return "Una richiesta archiviata non può essere creata.";
+    }
+
+    //------------------------------------------
+    // Payload
+    //------------------------------------------
+
+    if (request.payload.isEmpty) {
+      return "La richiesta di cancellazione non contiene dati.";
+    }
+
+    return _validateCancel(
+      request,
+    );
+  }
+
+  //--------------------------------------------------
   // RESCHEDULE
   //--------------------------------------------------
 
@@ -153,8 +207,11 @@ class RequestCreationValidator {
       return "Operatore non valido.";
     }
 
-    final oldId = oldEmployeeId.toString().trim();
-    final newId = newEmployeeId.toString().trim();
+    final oldId =
+    oldEmployeeId.toString().trim();
+
+    final newId =
+    newEmployeeId.toString().trim();
 
     if (oldId.isEmpty || newId.isEmpty) {
       return "Operatore non valido.";
@@ -261,7 +318,8 @@ class RequestCreationValidator {
   String? _validateCancel(
       AppointmentRequest request,
       ) {
-    final reason = request.payload["reason"];
+    final reason =
+    request.payload["reason"];
 
     if (reason == null ||
         reason.toString().trim().isEmpty) {
@@ -278,7 +336,8 @@ class RequestCreationValidator {
   String? _validateCustom(
       AppointmentRequest request,
       ) {
-    final title = request.payload["title"];
+    final title =
+    request.payload["title"];
 
     if (title == null ||
         title.toString().trim().isEmpty) {

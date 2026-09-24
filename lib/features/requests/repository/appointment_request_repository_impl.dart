@@ -54,6 +54,15 @@ class AppointmentRequestRepositoryImpl
   }
 
   @override
+  Future<AppointmentRequest> createCustomerCancellationRequest(
+      AppointmentRequest request,
+      ) {
+    return _workflow.createCustomerCancellationRequest(
+      request: request,
+    );
+  }
+
+  @override
   Future<AppointmentRequest> createCustomRequest(
       AppointmentRequest request,
       ) {
@@ -165,6 +174,15 @@ class AppointmentRequestRepositoryImpl
       String salonId,
       ) {
     return _workflow.watchPendingRequests(
+      salonId,
+    );
+  }
+
+  @override
+  Stream<List<AppointmentRequest>> watchPendingSalonRequests(
+      String salonId,
+      ) {
+    return _workflow.watchPendingSalonRequests(
       salonId,
     );
   }
