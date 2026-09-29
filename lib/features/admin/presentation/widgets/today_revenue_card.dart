@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 
 import '../../../../app/theme/theme.dart';
@@ -55,7 +56,7 @@ class TodayRevenueCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'INCASSO PREVISTO DI OGGI',
+                  'VALORE PREVISTO DI OGGI',
                   style: AppTextStyles.labelMedium.copyWith(
                     color: AppColors.primary,
                     letterSpacing: 1.2,
@@ -70,7 +71,7 @@ class TodayRevenueCard extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  'Totale degli appuntamenti non annullati.',
+                  'Valore degli appuntamenti di oggi non annullati.',
                   style: AppTextStyles.bodySmall.copyWith(
                     color: AppColors.textSecondary,
                   ),

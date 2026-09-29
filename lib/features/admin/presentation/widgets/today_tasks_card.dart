@@ -59,11 +59,9 @@ class TodayTasksCard extends StatelessWidget {
                   letterSpacing: 1.5,
                 ),
               ),
-
               const SizedBox(
                 height: AppSpacing.xl,
               ),
-
               if (completed)
                 const _CompletedState()
               else ...[
@@ -77,12 +75,10 @@ class TodayTasksCard extends StatelessWidget {
                     description:
                     "in attesa di risposta",
                   ),
-
                   const SizedBox(
                     height: AppSpacing.lg,
                   ),
                 ],
-
                 if (model.unconfirmedAppointments >
                     0) ...[
                   _TaskTile(
@@ -90,60 +86,24 @@ class TodayTasksCard extends StatelessWidget {
                     Icons.access_time_filled_rounded,
                     color: Colors.green,
                     title: "Conferme",
-                    value: model
-                        .unconfirmedAppointments,
+                    value:
+                    model.unconfirmedAppointments,
                     description:
                     "appuntamenti da confermare",
                   ),
-
                   const SizedBox(
                     height: AppSpacing.lg,
                   ),
                 ],
-
-                if (model.expiringRequests > 0) ...[
+                if (model.expiringAppointments > 0)
                   _TaskTile(
-                    icon:
-                    Icons.timer_outlined,
+                    icon: Icons.timer_outlined,
                     color: Colors.red,
-                    title: "Richieste",
+                    title: "Appuntamenti",
                     value:
-                    model.expiringRequests,
+                    model.expiringAppointments,
                     description:
-                    "in scadenza",
-                  ),
-
-                  const SizedBox(
-                    height: AppSpacing.lg,
-                  ),
-                ],
-
-                if (model.pendingReviews > 0) ...[
-                  _TaskTile(
-                    icon: Icons.star_rounded,
-                    color: Colors.amber,
-                    title: "Recensioni",
-                    value:
-                    model.pendingReviews,
-                    description:
-                    "da moderare",
-                  ),
-
-                  const SizedBox(
-                    height: AppSpacing.lg,
-                  ),
-                ],
-
-                if (model.missingPayments > 0)
-                  _TaskTile(
-                    icon:
-                    Icons.payments_rounded,
-                    color: Colors.deepOrange,
-                    title: "Pagamenti",
-                    value:
-                    model.missingPayments,
-                    description:
-                    "da incassare",
+                    "prossimi all'orario di inizio",
                   ),
               ],
             ],
@@ -165,8 +125,8 @@ class _TaskTile extends StatelessWidget {
 
   final IconData icon;
   final Color color;
-  final String title;
   final int value;
+  final String title;
   final String description;
 
   @override
@@ -183,11 +143,9 @@ class _TaskTile extends StatelessWidget {
             size: 22,
           ),
         ),
-
         const SizedBox(
           width: AppSpacing.md,
         ),
-
         Expanded(
           child: Column(
             crossAxisAlignment:
@@ -198,21 +156,17 @@ class _TaskTile extends StatelessWidget {
                 style:
                 AppTextStyles.titleMedium,
               ),
-
               const SizedBox(height: 2),
-
               Text(
                 description,
-                style: AppTextStyles.bodySmall
-                    .copyWith(
-                  color:
-                  AppColors.textSecondary,
+                style:
+                AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.textSecondary,
                 ),
               ),
             ],
           ),
         ),
-
         Container(
           padding:
           const EdgeInsets.symmetric(
@@ -227,8 +181,8 @@ class _TaskTile extends StatelessWidget {
           ),
           child: Text(
             value.toString(),
-            style: AppTextStyles.titleMedium
-                .copyWith(
+            style:
+            AppTextStyles.titleMedium.copyWith(
               color: color,
             ),
           ),
@@ -263,27 +217,22 @@ class _CompletedState
               size: 34,
             ),
           ),
-
           const SizedBox(
             height: AppSpacing.lg,
           ),
-
           Text(
             "Tutto sotto controllo",
             style:
             AppTextStyles.titleLarge,
           ),
-
           const SizedBox(
             height: AppSpacing.sm,
           ),
-
           Text(
             "Non ci sono attività urgenti per oggi.",
             style:
             AppTextStyles.bodyMedium.copyWith(
-              color:
-              AppColors.textSecondary,
+              color: AppColors.textSecondary,
             ),
             textAlign: TextAlign.center,
           ),

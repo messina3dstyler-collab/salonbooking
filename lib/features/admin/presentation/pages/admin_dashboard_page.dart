@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -18,6 +19,7 @@ import '../widgets/dashboard_quick_actions.dart';
 import '../widgets/dashboard_section_title.dart';
 import '../widgets/dashboard_statistics_grid.dart';
 import '../widgets/today_overview.dart';
+import '../widgets/today_revenue_card.dart';
 
 class AdminDashboardPage extends ConsumerStatefulWidget {
   const AdminDashboardPage({
@@ -174,6 +176,13 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
                     color: AppColors.textSecondary,
                   ),
                 ),
+                const SizedBox(height: AppSpacing.xl),
+
+                // Valore economico previsto degli appuntamenti di oggi.
+                TodayRevenueCard(
+                  model: dashboard.todayOverview.revenue,
+                ),
+
                 const SizedBox(height: AppSpacing.xxl),
                 TodayOverview(
                   overview: dashboard.todayOverview,

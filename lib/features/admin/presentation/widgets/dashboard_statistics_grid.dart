@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 
 import '../../../../app/theme/theme.dart';
@@ -42,7 +43,7 @@ class DashboardStatisticsGrid extends StatelessWidget {
         _StatisticCard(
           icon: Icons.payments_rounded,
           color: AppColors.success,
-          title: 'Incasso',
+          title: 'Incasso previsto',
           value: dashboard.formattedRevenue,
         ),
         _StatisticCard(

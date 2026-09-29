@@ -7,7 +7,6 @@ import '../../models/today_overview_model.dart';
 import 'next_appointment_card.dart';
 import 'team_status_card.dart';
 import 'today_header.dart';
-import 'today_revenue_card.dart';
 import 'today_tasks_card.dart';
 
 class TodayOverview extends StatelessWidget {
@@ -28,17 +27,13 @@ class TodayOverview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment:
-      CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         TodayHeader(
           date: overview.date,
-          appointments:
-          overview.todayAppointments,
-          pendingRequests:
-          overview.pendingRequests,
-          expectedRevenue:
-          overview.revenue.expectedRevenue,
+          appointments: overview.todayAppointments,
+          pendingRequests: overview.pendingRequests,
+          expectedRevenue: overview.revenue.expectedRevenue,
         ),
 
         const SizedBox(
@@ -66,14 +61,6 @@ class TodayOverview extends StatelessWidget {
         TeamStatusCard(
           members: overview.team,
           onTap: onTeam,
-        ),
-
-        const SizedBox(
-          height: AppSpacing.xl,
-        ),
-
-        TodayRevenueCard(
-          model: overview.revenue,
         ),
       ],
     );

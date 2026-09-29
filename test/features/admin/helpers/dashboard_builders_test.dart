@@ -13,155 +13,283 @@ void main() {
   final referenceTime = DateTime(2026, 8, 27, 9);
 
   group('RevenueBuilder', () {
-    test('calcola incasso previsto e incassato escludendo gli annullati', () {
-      final revenue = const RevenueBuilder().build([
-        _appointment(
-          id: 'pending',
-          date: referenceTime.add(const Duration(hours: 1)),
-          status: 'Prenotata',
-          price: 20,
-        ),
-        _appointment(
-          id: 'completed',
-          date: referenceTime.add(const Duration(hours: 2)),
-          status: 'Completata',
-          price: 30,
-        ),
-        _appointment(
-          id: 'cancelled',
-          date: referenceTime.add(const Duration(hours: 3)),
-          status: 'Annullata',
-          price: 40,
-        ),
-      ]);
-
-      expect(revenue.expectedRevenue, 50.0);
-      expect(revenue.today, 50.0);
-      expect(revenue.collectedRevenue, 0.0);
-    });
-  });
-
-  group('NextAppointmentBuilder', () {
-    test('restituisce il primo appuntamento futuro non annullato', () {
-      final nextAppointment = const NextAppointmentBuilder().build(
-        [
+    test(
+      'calcola incasso previsto e incassato escludendo gli annullati',
+          () {
+        final revenue = const RevenueBuilder().build([
           _appointment(
-            id: 'later',
-            date: referenceTime.add(const Duration(hours: 2)),
+            id: 'pending',
+            date: referenceTime.add(
+              const Duration(hours: 1),
+            ),
+            status: 'Prenotata',
+            price: 20,
+          ),
+          _appointment(
+            id: 'completed',
+            date: referenceTime.add(
+              const Duration(hours: 2),
+            ),
+            status: 'Completata',
+            price: 30,
           ),
           _appointment(
             id: 'cancelled',
-            date: referenceTime.add(const Duration(minutes: 30)),
+            date: referenceTime.add(
+              const Duration(hours: 3),
+            ),
             status: 'Annullata',
+            price: 40,
           ),
-          _appointment(
-            id: 'next',
-            date: referenceTime.add(const Duration(hours: 1)),
-            customerName: 'Giulia Rossi',
-            serviceName: 'Taglio',
-            employeeName: 'Anna',
-          ),
-          _appointment(
-            id: 'past',
-            date: referenceTime.subtract(const Duration(minutes: 30)),
-          ),
-        ],
-        now: referenceTime,
-      );
+        ]);
 
-      expect(nextAppointment.id, 'next');
-      expect(nextAppointment.customer, 'Giulia Rossi');
-      expect(nextAppointment.time, '10:00');
-      expect(nextAppointment.countdown, 'Tra 60 min');
-    });
+        expect(revenue.expectedRevenue, 50.0);
+        expect(revenue.today, 50.0);
+        expect(revenue.collectedRevenue, 0.0);
+      },
+    );
+  });
 
-    test('restituisce un modello vuoto senza appuntamenti futuri', () {
-      final nextAppointment = const NextAppointmentBuilder().build(
-        [
-          _appointment(
-            id: 'past',
-            date: referenceTime.subtract(const Duration(hours: 1)),
-          ),
-        ],
-        now: referenceTime,
-      );
+  group('NextAppointmentBuilder', () {
+    test(
+      'restituisce il primo appuntamento futuro non annullato',
+          () {
+        final nextAppointment =
+        const NextAppointmentBuilder().build(
+          [
+            _appointment(
+              id: 'later',
+              date: referenceTime.add(
+                const Duration(hours: 2),
+              ),
+            ),
+            _appointment(
+              id: 'cancelled',
+              date: referenceTime.add(
+                const Duration(minutes: 30),
+              ),
+              status: 'Annullata',
+            ),
+            _appointment(
+              id: 'next',
+              date: referenceTime.add(
+                const Duration(hours: 1),
+              ),
+              customerName: 'Giulia Rossi',
+              serviceName: 'Taglio',
+              employeeName: 'Anna',
+            ),
+            _appointment(
+              id: 'past',
+              date: referenceTime.subtract(
+                const Duration(minutes: 30),
+              ),
+            ),
+          ],
+          now: referenceTime,
+        );
 
-      expect(nextAppointment.isEmpty, isTrue);
-    });
+        expect(nextAppointment.id, 'next');
+        expect(nextAppointment.customer, 'Giulia Rossi');
+        expect(nextAppointment.time, '10:00');
+        expect(nextAppointment.countdown, 'Tra 60 min');
+      },
+    );
+
+    test(
+      'restituisce un modello vuoto senza appuntamenti futuri',
+          () {
+        final nextAppointment =
+        const NextAppointmentBuilder().build(
+          [
+            _appointment(
+              id: 'past',
+              date: referenceTime.subtract(
+                const Duration(hours: 1),
+              ),
+            ),
+          ],
+          now: referenceTime,
+        );
+
+        expect(nextAppointment.isEmpty, isTrue);
+      },
+    );
   });
 
   group('TodayTasksBuilder', () {
-    test('conta conferme e pagamenti mancanti', () {
-      final tasks = const TodayTasksBuilder().build([
-        _appointment(
-          id: 'pending',
-          date: referenceTime,
-          status: 'Prenotata',
-        ),
-        _appointment(
-          id: 'completed-paid',
-          date: referenceTime,
-          status: 'Completata',
-          price: 25,
-        ),
-        _appointment(
-          id: 'completed-free',
-          date: referenceTime,
-          status: 'Completata',
-          price: 0,
-        ),
-      ]);
+    test(
+      'conta appuntamenti da confermare e prossimi all inizio',
+          () {
+        final tasks = const TodayTasksBuilder().build(
+          [
+            _appointment(
+              id: 'pending',
+              date: referenceTime,
+              status: 'Prenotata',
+            ),
+            _appointment(
+              id: 'upcoming',
+              date: referenceTime.add(
+                const Duration(minutes: 30),
+              ),
+              status: 'Confermata',
+            ),
+            _appointment(
+              id: 'later',
+              date: referenceTime.add(
+                const Duration(hours: 2),
+              ),
+              status: 'Confermata',
+            ),
+            _appointment(
+              id: 'completed',
+              date: referenceTime.add(
+                const Duration(minutes: 15),
+              ),
+              status: 'Completata',
+              price: 25,
+            ),
+            _appointment(
+              id: 'cancelled',
+              date: referenceTime.add(
+                const Duration(minutes: 20),
+              ),
+              status: 'Annullata',
+            ),
+          ],
+          pendingRequests: 2,
+          referenceTime: referenceTime,
+        );
 
-      expect(tasks.unconfirmedAppointments, 1);
-      expect(tasks.missingPayments, 1);
-    });
+        expect(tasks.pendingRequests, 2);
+        expect(tasks.unconfirmedAppointments, 1);
+        expect(tasks.expiringAppointments, 2);
+      },
+    );
+
+    test(
+      'non considera scaduti o lontani gli appuntamenti in scadenza',
+          () {
+        final tasks = const TodayTasksBuilder().build(
+          [
+            _appointment(
+              id: 'past',
+              date: referenceTime.subtract(
+                const Duration(minutes: 15),
+              ),
+              status: 'Confermata',
+            ),
+            _appointment(
+              id: 'outside-window',
+              date: referenceTime.add(
+                const Duration(minutes: 61),
+              ),
+              status: 'Confermata',
+            ),
+          ],
+          referenceTime: referenceTime,
+        );
+
+        expect(tasks.expiringAppointments, 0);
+      },
+    );
   });
 
   group('TeamStatusBuilder', () {
-    test('assegna correttamente gli stati dei dipendenti', () {
-      final team = const TeamStatusBuilder().build(
-        employees: [
-          _employee(id: 'anna', name: 'Anna'),
-          _employee(id: 'marta', name: 'Marta'),
-          _employee(
-            id: 'lisa',
-            name: 'Lisa',
-            active: false,
+    test(
+      'assegna correttamente gli stati dei dipendenti',
+          () {
+        final team = const TeamStatusBuilder().build(
+          employees: [
+            _employee(
+              id: 'anna',
+              name: 'Anna',
+            ),
+            _employee(
+              id: 'marta',
+              name: 'Marta',
+            ),
+            _employee(
+              id: 'lisa',
+              name: 'Lisa',
+              active: false,
+            ),
+          ],
+          appointments: [
+            _appointment(
+              id: 'current',
+              date: DateTime(
+                2026,
+                8,
+                27,
+                8,
+                30,
+              ),
+              duration: 90,
+              employeeId: 'anna',
+              customerName: 'Giulia Rossi',
+              serviceName: 'Colore',
+            ),
+            _appointment(
+              id: 'next',
+              date: DateTime(
+                2026,
+                8,
+                27,
+                11,
+              ),
+              duration: 60,
+              employeeId: 'marta',
+              serviceName: 'Piega',
+            ),
+          ],
+          now: DateTime(
+            2026,
+            8,
+            27,
+            9,
           ),
-        ],
-        appointments: [
-          _appointment(
-            id: 'current',
-            date: DateTime(2026, 8, 27, 8, 30),
-            duration: 90,
-            employeeId: 'anna',
-            customerName: 'Giulia Rossi',
-            serviceName: 'Colore',
-          ),
-          _appointment(
-            id: 'next',
-            date: DateTime(2026, 8, 27, 11),
-            duration: 60,
-            employeeId: 'marta',
-            serviceName: 'Piega',
-          ),
-        ],
-        now: DateTime(2026, 8, 27, 9),
-      );
+        );
 
-      final anna = team.firstWhere((member) => member.id == 'anna');
-      final marta = team.firstWhere((member) => member.id == 'marta');
-      final lisa = team.firstWhere((member) => member.id == 'lisa');
+        final anna = team.firstWhere(
+              (member) => member.id == 'anna',
+        );
+        final marta = team.firstWhere(
+              (member) => member.id == 'marta',
+        );
+        final lisa = team.firstWhere(
+              (member) => member.id == 'lisa',
+        );
 
-      expect(anna.status, EmployeeStatus.busy);
-      expect(anna.currentCustomer, 'Giulia Rossi');
-      expect(anna.subtitle, 'Colore');
+        expect(
+          anna.status,
+          EmployeeStatus.busy,
+        );
+        expect(
+          anna.currentCustomer,
+          'Giulia Rossi',
+        );
+        expect(
+          anna.subtitle,
+          'Colore',
+        );
 
-      expect(marta.status, EmployeeStatus.available);
-      expect(marta.nextAppointmentTime, '11:00');
+        expect(
+          marta.status,
+          EmployeeStatus.available,
+        );
+        expect(
+          marta.nextAppointmentTime,
+          '11:00',
+        );
 
-      expect(lisa.status, EmployeeStatus.offline);
-    });
+        expect(
+          lisa.status,
+          EmployeeStatus.offline,
+        );
+      },
+    );
   });
 }
 
@@ -211,7 +339,13 @@ EmployeeModel _employee({
     rating: 0,
     reviewCount: 0,
     specialization: '',
-    workingDays: const [1, 2, 3, 4, 5],
+    workingDays: const [
+      1,
+      2,
+      3,
+      4,
+      5,
+    ],
     startHour: 9,
     endHour: 18,
     breakStart: 780,

@@ -30,6 +30,7 @@ class TodayOverviewBuilder {
 
     final tasks = _tasksBuilder.build(
       snapshot.todayAppointments,
+      pendingRequests: snapshot.pendingRequests,
     );
 
     final revenue = _revenueBuilder.build(
@@ -44,7 +45,7 @@ class TodayOverviewBuilder {
     return TodayOverviewModel(
       date: DateTime.now(),
       todayAppointments: snapshot.todayAppointments.length,
-      pendingRequests: 0,
+      pendingRequests: snapshot.pendingRequests,
       nextAppointment: nextAppointment,
       tasks: tasks,
       revenue: revenue,

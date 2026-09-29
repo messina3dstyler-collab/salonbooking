@@ -1,82 +1,63 @@
 class TodayTasksModel {
   const TodayTasksModel({
-    // Dashboard completa
     this.pendingRequests = 0,
-    this.pendingReviews = 0,
-    this.expiringRequests = 0,
     this.unconfirmedAppointments = 0,
-    this.missingPayments = 0,
-
-    // Today Overview
-    this.arrivalsSoon = 0,
-    this.confirmations = 0,
+    this.expiringAppointments = 0,
   });
 
   //--------------------------------------------------
-  // DASHBOARD
+  // DASHBOARD TASKS
   //--------------------------------------------------
 
+  /// Richieste che richiedono un'azione da parte del salone.
   final int pendingRequests;
 
-  final int pendingReviews;
-
-  final int expiringRequests;
-
+  /// Appuntamenti ancora da confermare.
   final int unconfirmedAppointments;
 
-  final int missingPayments;
+  /// Appuntamenti prossimi all'orario di inizio.
+  final int expiringAppointments;
 
   //--------------------------------------------------
-  // TODAY OVERVIEW
+  // FACTORY
   //--------------------------------------------------
-
-  final int arrivalsSoon;
-
-  final int confirmations;
 
   factory TodayTasksModel.empty() {
     return const TodayTasksModel();
   }
 
+  //--------------------------------------------------
+  // COPY
+  //--------------------------------------------------
+
   TodayTasksModel copyWith({
     int? pendingRequests,
-    int? pendingReviews,
-    int? expiringRequests,
     int? unconfirmedAppointments,
-    int? missingPayments,
-    int? arrivalsSoon,
-    int? confirmations,
+    int? expiringAppointments,
   }) {
     return TodayTasksModel(
       pendingRequests:
       pendingRequests ?? this.pendingRequests,
-      pendingReviews:
-      pendingReviews ?? this.pendingReviews,
-      expiringRequests:
-      expiringRequests ?? this.expiringRequests,
       unconfirmedAppointments:
       unconfirmedAppointments ??
           this.unconfirmedAppointments,
-      missingPayments:
-      missingPayments ?? this.missingPayments,
-      arrivalsSoon:
-      arrivalsSoon ?? this.arrivalsSoon,
-      confirmations:
-      confirmations ?? this.confirmations,
+      expiringAppointments:
+      expiringAppointments ??
+          this.expiringAppointments,
     );
   }
 
+  //--------------------------------------------------
+  // MAP
+  //--------------------------------------------------
+
   Map<String, dynamic> toMap() {
     return {
-      "pendingRequests": pendingRequests,
-      "pendingReviews": pendingReviews,
-      "expiringRequests": expiringRequests,
-      "unconfirmedAppointments":
+      'pendingRequests': pendingRequests,
+      'unconfirmedAppointments':
       unconfirmedAppointments,
-      "missingPayments": missingPayments,
-
-      "arrivalsSoon": arrivalsSoon,
-      "confirmations": confirmations,
+      'expiringAppointments':
+      expiringAppointments,
     };
   }
 
@@ -85,27 +66,15 @@ class TodayTasksModel {
       ) {
     return TodayTasksModel(
       pendingRequests:
-      _parseInt(map["pendingRequests"]),
-
-      pendingReviews:
-      _parseInt(map["pendingReviews"]),
-
-      expiringRequests:
-      _parseInt(map["expiringRequests"]),
-
+      _parseInt(map['pendingRequests']),
       unconfirmedAppointments:
       _parseInt(
-        map["unconfirmedAppointments"],
+        map['unconfirmedAppointments'],
       ),
-
-      missingPayments:
-      _parseInt(map["missingPayments"]),
-
-      arrivalsSoon:
-      _parseInt(map["arrivalsSoon"]),
-
-      confirmations:
-      _parseInt(map["confirmations"]),
+      expiringAppointments:
+      _parseInt(
+        map['expiringAppointments'],
+      ),
     );
   }
 
@@ -115,17 +84,12 @@ class TodayTasksModel {
 
   bool get hasTasks => totalTasks > 0;
 
-  bool get isCompleted =>
-      pendingRequests == 0 &&
-          arrivalsSoon == 0 &&
-          confirmations == 0;
+  bool get isCompleted => totalTasks == 0;
 
   int get totalTasks {
     return pendingRequests +
-        pendingReviews +
-        expiringRequests +
         unconfirmedAppointments +
-        missingPayments;
+        expiringAppointments;
   }
 
   //--------------------------------------------------

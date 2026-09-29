@@ -14,7 +14,7 @@ class NextAppointmentBuilder {
     AppointmentModel? nextAppointment;
 
     for (final appointment in appointments) {
-      if (!appointment.isConfirmed ||
+      if (!appointment.isActive ||
           !appointment.appointmentStart.isAfter(referenceTime)) {
         continue;
       }
