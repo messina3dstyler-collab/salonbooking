@@ -49,14 +49,10 @@ class DashboardQueryHelper {
     ]);
 
     return DashboardSnapshot(
-      todayAppointments:
-      results[0] as List<AppointmentModel>,
-      allAppointments:
-      results[1] as List<AppointmentModel>,
-      employees:
-      results[2] as List<EmployeeModel>,
-      pendingRequests:
-      results[3] as int,
+      todayAppointments: results[0] as List<AppointmentModel>,
+      allAppointments: results[1] as List<AppointmentModel>,
+      employees: results[2] as List<EmployeeModel>,
+      pendingRequests: results[3] as int,
     );
   }
 
@@ -71,8 +67,7 @@ class DashboardQueryHelper {
     StreamSubscription<List<EmployeeModel>>?
     employeesSubscription;
 
-    StreamSubscription<int>?
-    pendingRequestsSubscription;
+    StreamSubscription<int>? pendingRequestsSubscription;
 
     List<AppointmentModel>? allAppointments;
     List<EmployeeModel>? employees;
@@ -87,8 +82,7 @@ class DashboardQueryHelper {
 
       controller.add(
         DashboardSnapshot(
-          todayAppointments:
-          _filterTodayAppointments(
+          todayAppointments: _filterTodayAppointments(
             allAppointments!,
           ),
           allAppointments: allAppointments!,
@@ -100,38 +94,35 @@ class DashboardQueryHelper {
 
     controller = StreamController<DashboardSnapshot>(
       onListen: () {
-        appointmentsSubscription =
-            watchAllAppointments(
-              salonId: salonId,
-            ).listen(
-                  (appointments) {
-                allAppointments = appointments;
-                emitSnapshot();
-              },
-              onError: controller.addError,
-            );
+        appointmentsSubscription = watchAllAppointments(
+          salonId: salonId,
+        ).listen(
+              (appointments) {
+            allAppointments = appointments;
+            emitSnapshot();
+          },
+          onError: controller.addError,
+        );
 
-        employeesSubscription =
-            watchEmployees(
-              salonId: salonId,
-            ).listen(
-                  (value) {
-                employees = value;
-                emitSnapshot();
-              },
-              onError: controller.addError,
-            );
+        employeesSubscription = watchEmployees(
+          salonId: salonId,
+        ).listen(
+              (value) {
+            employees = value;
+            emitSnapshot();
+          },
+          onError: controller.addError,
+        );
 
-        pendingRequestsSubscription =
-            watchPendingRequestsCount(
-              salonId: salonId,
-            ).listen(
-                  (value) {
-                pendingRequests = value;
-                emitSnapshot();
-              },
-              onError: controller.addError,
-            );
+        pendingRequestsSubscription = watchPendingRequestsCount(
+          salonId: salonId,
+        ).listen(
+              (value) {
+            pendingRequests = value;
+            emitSnapshot();
+          },
+          onError: controller.addError,
+        );
       },
       onCancel: () async {
         await appointmentsSubscription?.cancel();
@@ -155,9 +146,7 @@ class DashboardQueryHelper {
           .where(
         'status',
         isEqualTo:
-        AppointmentRequestStatus
-            .pendingCustomer
-            .name,
+        AppointmentRequestStatus.pendingCustomer.name,
       )
           .get(),
       _requests
@@ -168,17 +157,14 @@ class DashboardQueryHelper {
           .where(
         'status',
         isEqualTo:
-        AppointmentRequestStatus
-            .pendingSalon
-            .name,
+        AppointmentRequestStatus.pendingSalon.name,
       )
           .get(),
     ]);
 
     return results.fold<int>(
       0,
-          (total, snapshot) =>
-      total + snapshot.size,
+          (total, snapshot) => total + snapshot.size,
     );
   }
 
@@ -196,66 +182,67 @@ class DashboardQueryHelper {
     int pendingCustomerCount = 0;
     int pendingSalonCount = 0;
 
+    // Evita di emettere un totale parziale prima che entrambi
+    // i listener abbiano ricevuto il loro primo snapshot.
+    bool hasPendingCustomerSnapshot = false;
+    bool hasPendingSalonSnapshot = false;
+
     void emitCount() {
+      if (!hasPendingCustomerSnapshot ||
+          !hasPendingSalonSnapshot) {
+        return;
+      }
+
       controller.add(
-        pendingCustomerCount +
-            pendingSalonCount,
+        pendingCustomerCount + pendingSalonCount,
       );
     }
 
     controller = StreamController<int>(
       onListen: () {
-        pendingCustomerSubscription =
-            _requests
-                .where(
-              'salonId',
-              isEqualTo: salonId,
-            )
-                .where(
-              'status',
-              isEqualTo:
-              AppointmentRequestStatus
-                  .pendingCustomer
-                  .name,
-            )
-                .snapshots()
-                .listen(
-                  (snapshot) {
-                pendingCustomerCount =
-                    snapshot.size;
-                emitCount();
-              },
-              onError: controller.addError,
-            );
+        pendingCustomerSubscription = _requests
+            .where(
+          'salonId',
+          isEqualTo: salonId,
+        )
+            .where(
+          'status',
+          isEqualTo:
+          AppointmentRequestStatus.pendingCustomer.name,
+        )
+            .snapshots()
+            .listen(
+              (snapshot) {
+            pendingCustomerCount = snapshot.size;
+            hasPendingCustomerSnapshot = true;
+            emitCount();
+          },
+          onError: controller.addError,
+        );
 
-        pendingSalonSubscription =
-            _requests
-                .where(
-              'salonId',
-              isEqualTo: salonId,
-            )
-                .where(
-              'status',
-              isEqualTo:
-              AppointmentRequestStatus
-                  .pendingSalon
-                  .name,
-            )
-                .snapshots()
-                .listen(
-                  (snapshot) {
-                pendingSalonCount =
-                    snapshot.size;
-                emitCount();
-              },
-              onError: controller.addError,
-            );
+        pendingSalonSubscription = _requests
+            .where(
+          'salonId',
+          isEqualTo: salonId,
+        )
+            .where(
+          'status',
+          isEqualTo:
+          AppointmentRequestStatus.pendingSalon.name,
+        )
+            .snapshots()
+            .listen(
+              (snapshot) {
+            pendingSalonCount = snapshot.size;
+            hasPendingSalonSnapshot = true;
+            emitCount();
+          },
+          onError: controller.addError,
+        );
       },
       onCancel: () async {
-        await pendingCustomerSubscription
-            ?.cancel();
-        await pendingSalonSubscription
-            ?.cancel();
+        await pendingCustomerSubscription?.cancel();
+        await pendingSalonSubscription?.cancel();
       },
     );
 
@@ -275,11 +262,10 @@ class DashboardQueryHelper {
 
     return snapshot.docs
         .map(
-          (document) =>
-          AppointmentModel.fromMap(
-            document.id,
-            document.data(),
-          ),
+          (document) => AppointmentModel.fromMap(
+        document.id,
+        document.data(),
+      ),
     )
         .toList();
   }
@@ -297,11 +283,10 @@ class DashboardQueryHelper {
         .map(
           (snapshot) => snapshot.docs
           .map(
-            (document) =>
-            AppointmentModel.fromMap(
-              document.id,
-              document.data(),
-            ),
+            (document) => AppointmentModel.fromMap(
+          document.id,
+          document.data(),
+        ),
       )
           .toList(),
     );
@@ -329,8 +314,7 @@ class DashboardQueryHelper {
     )
         .where(
       'date',
-      isGreaterThanOrEqualTo:
-      Timestamp.fromDate(start),
+      isGreaterThanOrEqualTo: Timestamp.fromDate(start),
     )
         .where(
       'date',
@@ -341,11 +325,10 @@ class DashboardQueryHelper {
 
     return snapshot.docs
         .map(
-          (document) =>
-          AppointmentModel.fromMap(
-            document.id,
-            document.data(),
-          ),
+          (document) => AppointmentModel.fromMap(
+        document.id,
+        document.data(),
+      ),
     )
         .toList();
   }
@@ -363,11 +346,10 @@ class DashboardQueryHelper {
 
     return snapshot.docs
         .map(
-          (document) =>
-          EmployeeModel.fromMap(
-            document.id,
-            document.data(),
-          ),
+          (document) => EmployeeModel.fromMap(
+        document.id,
+        document.data(),
+      ),
     )
         .toList();
   }
@@ -385,11 +367,10 @@ class DashboardQueryHelper {
         .map(
           (snapshot) => snapshot.docs
           .map(
-            (document) =>
-            EmployeeModel.fromMap(
-              document.id,
-              document.data(),
-            ),
+            (document) => EmployeeModel.fromMap(
+          document.id,
+          document.data(),
+        ),
       )
           .toList(),
     );
