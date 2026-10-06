@@ -9,6 +9,10 @@ const {
   FieldValue,
 } = require('firebase-admin/firestore');
 
+const {
+  createCustomerAppointment,
+} = require('./create_customer_appointment');
+
 initializeApp();
 
 setGlobalOptions({
@@ -322,4 +326,19 @@ exports.registerSalon = onCall(async (request) => {
       'Unable to provision salon account.',
     );
   }
+});
+
+exports.createCustomerAppointment = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError(
+      'unauthenticated',
+      'Authentication is required.',
+    );
+  }
+
+  return createCustomerAppointment({
+    db,
+    auth,
+    request,
+  });
 });

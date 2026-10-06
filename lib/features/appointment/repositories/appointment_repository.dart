@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
 import '../models/appointment_model.dart';
 import '../models/appointment_slot_key.dart';
@@ -11,6 +12,11 @@ class AppointmentRepository {
 
   late final AppointmentAvailabilityRepository _availabilityRepository =
   AppointmentAvailabilityRepository(_firestore);
+
+  late final FirebaseFunctions _functions =
+  FirebaseFunctions.instanceFor(
+    region: 'europe-west12',
+  );
 
   CollectionReference<Map<String, dynamic>> get _appointments =>
       _firestore.collection('appointments');
@@ -97,88 +103,66 @@ class AppointmentRepository {
   }
 
   // ==================================================
-  // CREAZIONE ATOMICA
+  // CREAZIONE ATOMICA CLIENTE
   // ==================================================
 
-  /// Crea un Appointment e riserva atomicamente tutti gli slot
-  /// temporali occupati dal servizio.
+  /// Crea una prenotazione cliente attraverso la Cloud Function
+  /// server-side.
   ///
-  /// La prenotazione viene considerata riuscita solo se:
+  /// La Transaction Firestore non viene più eseguita dal client.
   ///
-  /// 1. l'Appointment non esiste già;
-  /// 2. tutti gli slot necessari vengono riservati;
-  /// 3. tutti i documenti degli slot vengono creati;
-  /// 4. l'Appointment viene creato nella stessa transazione.
+  /// La Cloud Function:
   ///
-  /// Il controllo di collisione sugli slot viene demandato alle
-  /// Firestore Security Rules, che verificano lo stato atomico
-  /// della Transaction tramite getAfter().
+  /// 1. verifica l'autenticazione;
+  /// 2. verifica salone, dipendente e servizio;
+  /// 3. valida il calendario del dipendente;
+  /// 4. genera l'Appointment ID server-side;
+  /// 5. costruisce gli AppointmentSlot con chiavi canoniche;
+  /// 6. costruisce le AppointmentAvailability;
+  /// 7. verifica le collisioni;
+  /// 8. crea tutto atomicamente.
+  ///
+  /// Il percorso pubblico del cliente non deve quindi più
+  /// scrivere direttamente:
+  ///
+  /// - appointments;
+  /// - appointment_slots;
+  /// - appointment_availability.
   Future<void> createAppointmentAtomically({
     required AppointmentModel appointment,
   }) async {
     _validateAppointment(appointment);
 
-    final appointmentRef = appointmentDocument(
-      appointment.id,
+    final appointmentDate = appointment.appointmentDate;
+
+    final localDate = _formatLocalDate(
+      appointmentDate,
     );
 
-    final slotRefs = _buildSlotRefs(appointment);
+    final localTime = _formatLocalTime(
+      appointmentDate,
+    );
 
-    await _firestore.runTransaction<void>(
-          (transaction) async {
-        // ==================================================
-        // READ
-        // ==================================================
+    final timezoneOffsetMinutes =
+        appointmentDate.timeZoneOffset.inMinutes;
 
-        final appointmentSnapshot =
-        await transaction.get(appointmentRef);
+    final timestampMillis =
+        appointment.date.millisecondsSinceEpoch;
 
-        if (appointmentSnapshot.exists) {
-          throw StateError(
-            'L\'Appointment "${appointment.id}" esiste già.',
-          );
-        }
+    final callable = _functions.httpsCallable(
+      'createCustomerAppointment',
+    );
 
-        // ==================================================
-        // WRITE
-        // ==================================================
-
-        transaction.set(
-          appointmentRef,
-          appointment.toMap(),
-        );
-
-        final createdAt = Timestamp.now();
-
-        final slotStarts = AppointmentSlotKey.buildSlots(
-          start: appointment.appointmentDate,
-          durationMinutes: appointment.duration,
-        );
-
-        for (var index = 0;
-        index < slotRefs.length;
-        index++) {
-          final slotStart = slotStarts[index];
-          final slotRef = slotRefs[index];
-
-          transaction.set(
-            slotRef,
-            {
-              'appointmentId': appointment.id,
-              'userId': appointment.userId,
-              'salonId': appointment.salonId,
-              'employeeId': appointment.employeeId,
-              'start': Timestamp.fromDate(slotStart),
-              'createdAt': createdAt,
-            },
-          );
-        }
-
-        _availabilityRepository.syncInTransaction(
-          oldAppointment: null,
-          newAppointment: appointment,
-          transaction: transaction,
-        );
+    await callable.call(
+      <String, dynamic>{
+        'salonId': appointment.salonId,
+        'employeeId': appointment.employeeId,
+        'serviceId': appointment.serviceId,
+        'localDate': localDate,
+        'localTime': localTime,
+        'timezoneOffsetMinutes':
+        timezoneOffsetMinutes,
+        'timestampMillis': timestampMillis,
       },
     );
   }
@@ -719,9 +703,7 @@ class AppointmentRepository {
       fieldName: 'appointmentId',
     );
 
-    final doc = await appointmentDocument(
-      appointmentId,
-    ).get();
+    final doc = await appointmentDocument(appointmentId).get();
 
     if (!doc.exists) {
       return null;
@@ -1157,6 +1139,21 @@ class AppointmentRepository {
         "Stato Appointment non riconosciuto: '$status'.",
       );
     }
+  }
+
+  // ==================================================
+  // LOCAL DATE / TIME
+  // ==================================================
+
+  static String _formatLocalDate(DateTime date) {
+    return '${date.year.toString().padLeft(4, '0')}-'
+        '${date.month.toString().padLeft(2, '0')}-'
+        '${date.day.toString().padLeft(2, '0')}';
+  }
+
+  static String _formatLocalTime(DateTime date) {
+    return '${date.hour.toString().padLeft(2, '0')}:'
+        '${date.minute.toString().padLeft(2, '0')}';
   }
 
   // ==================================================
