@@ -91,6 +91,47 @@ service cloud.firestore {
       return /databases/$(database)/documents/appointment_requests/$(requestId);
     }
 
+    function cancellationLockRef(appointmentId) {
+      return /databases/$(database)/documents/appointment_cancellation_locks/$(appointmentId);
+    }
+
+        function validCancellationLock(data, appointmentId) {
+          let requestData = getAfter(
+            acceptedRequestRef(data.requestId)
+          ).data;
+
+          return
+            isUser()
+            && data.appointmentId == appointmentId
+            && data.appointmentId is string
+            && data.appointmentId != ""
+            && data.requestId is string
+            && data.requestId != ""
+            && data.customerId == request.auth.uid
+            && data.customerId is string
+            && data.customerId != ""
+            && data.salonId is string
+            && data.salonId != ""
+
+            // Il lock può nascere solamente insieme a una Request nuova.
+            && !exists(
+              acceptedRequestRef(data.requestId)
+            )
+
+            // La Request deve esistere nello stato finale della transaction.
+            && existsAfter(
+              acceptedRequestRef(data.requestId)
+            )
+
+            && requestData.id == data.requestId
+            && requestData.appointmentId == appointmentId
+            && requestData.customerId == data.customerId
+            && requestData.salonId == data.salonId
+            && requestData.createdBy == "customer"
+            && requestData.type == "cancelAppointment"
+            && requestData.status == "pendingSalon";
+        }
+
     function acceptedRequestMatchesAppointment(
         requestId,
         appointmentId,
@@ -105,30 +146,77 @@ service cloud.firestore {
         && requestData.salonId == salonId;
     }
 
-    function validCustomerCancellationRequest(data, requestId) {
-      return
-        isUser()
-        && data.id == requestId
-        && data.createdBy == "customer"
-        && data.type == "cancelAppointment"
-        && data.status == "pendingSalon"
-        && data.customerId == request.auth.uid
-        && data.customerId is string
-        && data.customerId != ""
-        && data.salonId is string
-        && data.salonId != ""
-        && data.appointmentId is string
-        && data.appointmentId != ""
-        && data.priority is string
-        && data.payload is map
-        && exists(appointmentRef(data.appointmentId))
-        && get(appointmentRef(data.appointmentId)).data.userId == request.auth.uid
-        && get(appointmentRef(data.appointmentId)).data.salonId == data.salonId
-        && get(appointmentRef(data.appointmentId)).data.status != "Annullata"
-        && get(appointmentRef(data.appointmentId)).data.date is timestamp
-        && get(appointmentRef(data.appointmentId)).data.date
-           >= request.time + duration.value(48, 'h');
-    }
+            function validCustomerCancellationRequest(data, requestId) {
+              return
+                isUser()
+                && data.id == requestId
+                && data.createdBy == "customer"
+                && data.type == "cancelAppointment"
+                && data.status == "pendingSalon"
+                && data.customerId == request.auth.uid
+                && data.customerId is string
+                && data.customerId != ""
+                && data.salonId is string
+                && data.salonId != ""
+                && data.appointmentId is string
+                && data.appointmentId != ""
+                && data.priority is string
+                && data.payload is map
+
+                // -------------------------------------------------------
+                // APPOINTMENT
+                // -------------------------------------------------------
+
+                && exists(
+                  appointmentRef(data.appointmentId)
+                )
+
+                && get(
+                  appointmentRef(data.appointmentId)
+                ).data.userId == request.auth.uid
+
+                && get(
+                  appointmentRef(data.appointmentId)
+                ).data.salonId == data.salonId
+
+                && get(
+                  appointmentRef(data.appointmentId)
+                ).data.status != "Annullata"
+
+                && get(
+                  appointmentRef(data.appointmentId)
+                ).data.date is timestamp
+
+                && get(
+                  appointmentRef(data.appointmentId)
+                ).data.date
+                   >= request.time + duration.value(48, 'h')
+
+                // -------------------------------------------------------
+                // CANCELLATION LOCK
+                // -------------------------------------------------------
+                //
+                // Il lock deve essere creato atomicamente insieme alla
+                // nuova Request.
+                //
+                // Prima della transaction il lock non deve esistere.
+                // Nello stato finale della transaction deve invece esistere
+                // ed essere legato esattamente a questa Request.
+                //
+                // -------------------------------------------------------
+
+                && !exists(
+                  cancellationLockRef(data.appointmentId)
+                )
+
+                && existsAfter(
+                  cancellationLockRef(data.appointmentId)
+                )
+
+                && getAfter(
+                  cancellationLockRef(data.appointmentId)
+                ).data.requestId == requestId;
+            }
 
     function acceptedChangeServicesMatchesAppointment(
         requestId,
@@ -1038,6 +1126,84 @@ service cloud.firestore {
         );
     }
 
+    // =========================================================
+    // APPOINTMENT CANCELLATION LOCKS
+    // =========================================================
+    //
+    // Un lock identifica una sola richiesta di cancellazione
+    // attiva per uno specifico appointment.
+    //
+    // Il documento viene creato nella stessa transaction in cui
+    // viene creata la Request.
+    //
+    // Il customer non può modificarlo né eliminarlo.
+    //
+    // La cancellazione del lock verrà autorizzata separatamente
+    // nel workflow di rejection da parte del salone.
+    //
+    // =========================================================
+
+    match /appointment_cancellation_locks/{appointmentId} {
+
+      // -------------------------------------------------------
+      // READ
+      // -------------------------------------------------------
+
+      allow read: if
+        signedIn()
+        && (
+          (
+            isUser()
+            && resource.data.customerId
+               == request.auth.uid
+          )
+          ||
+          (
+            isSalon()
+            && resource.data.salonId
+               == currentUser().data.salonId
+          )
+        );
+
+
+      // -------------------------------------------------------
+      // CREATE - CUSTOMER
+      // -------------------------------------------------------
+      //
+      // Il lock deve essere creato nella stessa transaction
+      // della nuova Request di cancellazione.
+      //
+      // -------------------------------------------------------
+
+      allow create: if
+        validCancellationLock(
+          request.resource.data,
+          appointmentId
+        );
+
+
+      // -------------------------------------------------------
+      // UPDATE
+      // -------------------------------------------------------
+
+      allow update: if false;
+
+
+      // -------------------------------------------------------
+      // DELETE
+      // -------------------------------------------------------
+      //
+      // Verrà autorizzato nel workflow atomico di rejection.
+      //
+      // -------------------------------------------------------
+
+      allow delete: if false;
+    }
+
+
+    // =========================================================
+    // APPOINTMENT REQUESTS
+    // =========================================================
 
     // =========================================================
     // APPOINTMENT REQUESTS
@@ -1432,6 +1598,50 @@ service cloud.firestore {
 
         && request.resource.data.id == eventId
         && request.resource.data.requestId == requestId;
+
+
+        // -----------------------------------------------------
+        // CREATE - USER - INITIAL CREATED EVENT
+        // -----------------------------------------------------
+        //
+        // Il primo evento della Request viene creato nella stessa
+        // transaction in cui nasce la Request. Per questo caso
+        // utilizziamo getAfter() e verifichiamo che la Request non
+        // esistesse prima della transaction.
+        //
+        // -----------------------------------------------------
+
+        allow create: if
+        isUser()
+
+        && !exists(
+          /databases/$(database)/documents/appointment_requests/$(requestId)
+        )
+
+        && request.resource.data.id == eventId
+        && request.resource.data.requestId == requestId
+        && request.resource.data.type == "created"
+        && request.resource.data.author == "customer"
+
+        && getAfter(
+          /databases/$(database)/documents/appointment_requests/$(requestId)
+        ).data.id == requestId
+
+        && getAfter(
+          /databases/$(database)/documents/appointment_requests/$(requestId)
+        ).data.createdBy == "customer"
+
+        && getAfter(
+          /databases/$(database)/documents/appointment_requests/$(requestId)
+        ).data.type == "cancelAppointment"
+
+        && getAfter(
+          /databases/$(database)/documents/appointment_requests/$(requestId)
+        ).data.status == "pendingSalon"
+
+        && getAfter(
+          /databases/$(database)/documents/appointment_requests/$(requestId)
+        ).data.customerId == request.auth.uid;
 
 
         // -----------------------------------------------------

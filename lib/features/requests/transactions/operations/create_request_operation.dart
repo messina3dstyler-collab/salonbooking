@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../extensions/request_author_extension.dart';
@@ -26,6 +27,43 @@ class CreateRequestOperation extends RequestTransactionOperation {
     );
 
     //--------------------------------------------------
+    // CANCELLATION LOCK
+    //--------------------------------------------------
+    //
+    // Il lock viene creato esclusivamente per una richiesta
+    // di cancellazione creata dal customer e già nello stato
+    // pendingSalon.
+    //
+    // Non deve essere creato per altre Request cancelAppointment
+    // eventualmente generate da altri workflow (es. Request
+    // create dal salone in stato draft).
+    //
+    //--------------------------------------------------
+
+    if (request.createdBy == RequestAuthor.customer &&
+        request.type == AppointmentRequestType.cancelAppointment &&
+        request.status == AppointmentRequestStatus.pendingSalon) {
+      final lockDocument = firestore
+          .collection(
+        "appointment_cancellation_locks",
+      )
+          .doc(
+        request.appointmentId,
+      );
+
+      transaction.set(
+        lockDocument,
+        {
+          "appointmentId": request.appointmentId,
+          "requestId": request.id,
+          "customerId": request.customerId,
+          "salonId": request.salonId,
+          "createdAt": Timestamp.now(),
+        },
+      );
+    }
+
+    //--------------------------------------------------
     // TIMELINE
     //--------------------------------------------------
 
@@ -45,7 +83,3 @@ class CreateRequestOperation extends RequestTransactionOperation {
     );
   }
 }
-
-
-
-
